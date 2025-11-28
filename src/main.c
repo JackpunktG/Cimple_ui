@@ -1,4 +1,4 @@
-#include "SDL2_ui.h"
+#include "../lib/Cimple_ui/Cimple_ui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>

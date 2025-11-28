@@ -1,5 +1,5 @@
-#ifndef SDL2_UI_H
-#define SDL2_UI_H
+#ifndef Cimple_ui_H
+#define Cimple_ui_H
 #include "../arena_memory/arena_memory.h"
 #include "../string_lib/string.h"
 #include <SDL2/SDL.h>
