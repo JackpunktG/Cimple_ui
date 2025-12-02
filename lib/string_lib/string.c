@@ -301,6 +301,7 @@ void print(String* string)
         {
             index++;
             j = 0;
+            //printf("New Chunk\n");
         }
         assert(string->memory[index][j] != '\0');
         putchar(string->memory[index][j++]);
@@ -323,23 +324,11 @@ void println(String* string)
         if (i % STRING_CHUNK_SIZE == 0 && i != 0)
         {
             index++;
-            printf("New Chunk\n");
             j = 0;
+            //printf("New Chunk\n");
         }
+        assert(string->memory[index][j] != '\0');
         putchar(string->memory[index][j++]);
     }
     putchar('\n');
 }
-
-
-/*Text* text_init(Arena* arena)
-{
-    Text* t = arena_alloc(arena, sizeof(Text));
-    t->memory = arena_alloc()
-
-}
-
-
-*/
-
-
