@@ -38,11 +38,16 @@ typedef struct
 String* string_init(Arena* arena, StringMemory* sm);
 
 // Appends the given C-style, '\0' byte terminating string to the String, resizing if necessary.
-void string_c_append(Arena* arena, String** string, StringMemory* sm, const char* toAppend);
+//returns 0 on success, 1 on resize for pointer reallocation, -1 on failure
+int string_c_append(Arena* arena, String** string, StringMemory* sm, const char* toAppend);
 // Appends the given String to the String, resizing if necessary.
-void string_append(Arena* arena, String** string, StringMemory* sm, String* toAppend);
+//returns 0 on success, 1 on resize for pointer reallocation, -1 on failure
+int string_append(Arena* arena, String** string, StringMemory* sm, String* toAppend);
 // Appends string and auto flags toAppend string as dead
-void string_append_flagdead(Arena* arena, String** string, StringMemory** sm, String* toAppend);
+//returns 0 on success, 1 on resize for pointer reallocation, -1 on failure
+int string_append_flagdead(Arena* arena, String** string, StringMemory** sm, String* toAppend);
+// removes the last char in string
+void remove_last_char(String* string);
 // sends back a C-style string copy of the String to dest - dest must be preallocated with count + 1 bytes for null terminator
 void c_string_sendback(String* string, char* dest);
 //flags string for reuse
