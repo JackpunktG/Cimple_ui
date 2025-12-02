@@ -1,4 +1,4 @@
-#include "SDL2_ui.h"
+#include "Cimple_ui.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
@@ -259,6 +259,11 @@ void load_fonts(FontHolder* fh, const char* fileName, uint8_t fontSize)
 {
     assert(fh->count < fh->maxCount);
     TTF_Font* font = TTF_OpenFont(fileName, fontSize);
+    if (font == NULL)
+    {
+        printf("ERROR unable to load font %s! MSG: %s\n", fileName, TTF_GetError());
+        assert(false);
+    }
     fh->fonts[fh->count++] = font;
 }
 
@@ -425,7 +430,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                 assert(tb->focused);
                 if (e->key.keysym.sym == SDLK_BACKSPACE)
                 {
-                    tb->string->count = (tb->string->count > 0) ? tb->string->count -1 : 0;
+                    remove_last_char(tb->string);
                     tb->textChanged = true;
                 }
                 else
@@ -433,6 +438,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                     uiController->elemFocus = NULL;
                     uiController->focusedType = NULL_ELEM;
                     tb->focused = false; //lose focus on enter key
+                    SDL_StopTextInput();
                 }
                 break;
 
@@ -450,9 +456,7 @@ void ui_update(UIController* uiC, float deltaTime)
     if (uiC->elemFocus != NULL)
     {
         uiC->secondCounter += deltaTime;
-        if (uiC->secondCounter >= 0.5f)
         {
-            uiC->secondCounter = 0.0f;
             switch(uiC->focusedType)
             {
             case TEXTBOX_ELEM:
@@ -460,7 +464,9 @@ void ui_update(UIController* uiC, float deltaTime)
                 TextBox* tb = (TextBox*)uiC->elemFocus;
                 assert(tb->focused);
                 {
-                    tb->caret = !tb->caret;
+                    if (uiC->secondCounter >= 0.5f)
+                        tb->caret = !tb->caret;
+
                 }
                 break;
             }
@@ -469,6 +475,8 @@ void ui_update(UIController* uiC, float deltaTime)
                 break;
             }
         }
+        if (uiC->secondCounter >= 0.5f)
+            uiC->secondCounter = 0.0f;
     }
     else
     {
@@ -526,6 +534,7 @@ TextBox* textbox_init(Arena* arena, UIController* uiC, String* string, TTF_Font*
     tb->color = color;
     tb->font = font;
     tb->string = string;
+    tb->caretSpacing = 0;
     tb->focused = false;
     tb->caret = false;
     tb->textChanged = false;
@@ -550,8 +559,11 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
         TTF_SetFontSize(textbox->font, textbox->fontSize);
         free_texture(textbox->texture);
         char tmp[textbox->string->count +1];
+        println(textbox->string);
+        printf("Textbox text length: %u\n", textbox->string->count);
         c_string_sendback(textbox->string, tmp);
-        load_texture_from_rendered_text(textbox->texture, (int)(textbox->rect.w),tmp, textbox->font, textbox->color, renderer);
+        printf("Textbox text: %s\n", tmp);
+        load_texture_from_rendered_text(textbox->texture, (int)(textbox->rect.w - 5),tmp, textbox->font, textbox->color, renderer);
         textbox->textChanged = false;
     }
 
@@ -562,6 +574,8 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
         else if (textbox->texture->height < textbox->rect.h - textbox->fontSize)
             textbox->rect.h -= textbox->fontSize;
     }
+    else
+        textbox->caretSpacing = 0;
 
     SDL_Color color = COLOR[GRAY];
     SDL_FRect r = textbox->rect;
@@ -582,8 +596,8 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
     if(textbox->focused && textbox->caret)
     {
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 185);
-        SDL_RenderDrawLineF(renderer, r.x + 2, r.y +2, r.x +2,r.y +r.h -3);
-        SDL_RenderDrawLineF(renderer, r.x + 3, r.y +2, r.x +3,r.y +r.h -3);
+        SDL_RenderDrawLineF(renderer, r.x + 2 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +2 + (textbox->texture->width),r.y +r.h -3);
+        SDL_RenderDrawLineF(renderer, r.x + 3 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +3 + (textbox->texture->width),r.y +r.h -3);
 
     }
 }
@@ -591,7 +605,9 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
 void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const char* text)
 {
     String* s = textbox->string;
-    string_c_append(arena, &s, sm, text);
+    if (string_c_append(arena, &s, sm, text) == 1)
+        textbox->string = s;
+
     textbox->textChanged = true;
 }
 

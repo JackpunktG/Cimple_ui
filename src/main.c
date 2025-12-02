@@ -20,10 +20,10 @@ int main(int argc, char* argv[])
     // Event handler
     SDL_Event e;
 
-    const char* text = "Limelight-Regular.ttf";
+    const char* text = "src/assets/fonts/Limelight-Regular.ttf";
     const uint8_t DEFAULT_FONT_SIZE = 24;
 
-    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, NULL);
+    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, true);
     StringMemory* string_memory = string_memory_init(arena);
     String* string = string_init(arena, string_memory);
     UIController* UIController = ui_controller_init(arena, 1);
@@ -54,6 +54,17 @@ int main(int argc, char* argv[])
         float deltaTime = (currentTimeDelta - lastTime) / 1000.0f;
         lastTime = currentTimeDelta;
 
+        textbox_append_text(arena, string_memory, textbox, "123456712333333331312312312312312312389h1 lk2<F2>3jne12ho 10283jh o1i2j308 1h2<F2>3j12 3j12 3j");
+        if (textbox->string->count > 12312)
+        {
+            String* test = string_init(arena, string_memory);
+            int value = string_append(arena, &test, string_memory, textbox->string);
+
+            println(test);
+            printf("value: %d\n", value);
+            quit = true;
+
+        }
         // Update UI
         ui_update(UIController, deltaTime);
 

@@ -179,6 +179,8 @@ void* arena_alloc(Arena* arena, size_t size, size_t* sizeAlloc)
 
     if (sizeAlloc != NULL) *sizeAlloc = size;
 
+    //printf("freelist is NULL: %p\n", (void*)arena->freeList);
+
     return ptr;
 }
 

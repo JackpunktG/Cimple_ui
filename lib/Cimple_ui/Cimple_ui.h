@@ -122,6 +122,7 @@ typedef struct
     String* string;
     SDL_Color color;
     uint8_t fontSize;
+    uint8_t caretSpacing; // uses to place caret in correct location when mulitple lines
     bool focused;
     bool caret;
     bool textChanged;
