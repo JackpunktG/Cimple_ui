@@ -534,7 +534,6 @@ TextBox* textbox_init(Arena* arena, UIController* uiC, String* string, TTF_Font*
     tb->color = color;
     tb->font = font;
     tb->string = string;
-    tb->caretSpacing = 0;
     tb->focused = false;
     tb->caret = false;
     tb->textChanged = false;
@@ -553,17 +552,16 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
 {
     if (textbox->hidden) return;
 
-    //string render
+    //string texture update
     if (textbox->textChanged && textbox->string->count > 0)
     {
         TTF_SetFontSize(textbox->font, textbox->fontSize);
         free_texture(textbox->texture);
+
         char tmp[textbox->string->count +1];
-        println(textbox->string);
-        printf("Textbox text length: %u\n", textbox->string->count);
         c_string_sendback(textbox->string, tmp);
-        printf("Textbox text: %s\n", tmp);
         load_texture_from_rendered_text(textbox->texture, (int)(textbox->rect.w - 5),tmp, textbox->font, textbox->color, renderer);
+
         textbox->textChanged = false;
     }
 
@@ -574,18 +572,27 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
         else if (textbox->texture->height < textbox->rect.h - textbox->fontSize)
             textbox->rect.h -= textbox->fontSize;
     }
-    else
-        textbox->caretSpacing = 0;
 
     SDL_Color color = COLOR[GRAY];
     SDL_FRect r = textbox->rect;
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderDrawRectF(renderer, &r);
+    if (textbox->focused)
+    {
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawRectF(renderer, &r);
 
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 100);
-    SDL_RenderFillRectF(renderer, &r);
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 120);
+        SDL_RenderFillRectF(renderer, &r);
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 185);
+        SDL_RenderDrawRectF(renderer, &r);
 
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 100);
+        SDL_RenderFillRectF(renderer, &r);
+    }
 
+    //string render
     if (textbox->texture->mTexture != NULL && textbox->string->count > 0)
     {
         SDL_FRect dst = {r.x + 5, r.y + (r.h / 2) - (float)textbox->texture->height / 2, (float)textbox->texture->width, (float)textbox->texture->height};
@@ -593,13 +600,15 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
     }
 
 
+    //caret render
+    /*
     if(textbox->focused && textbox->caret)
     {
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 185);
         SDL_RenderDrawLineF(renderer, r.x + 2 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +2 + (textbox->texture->width),r.y +r.h -3);
         SDL_RenderDrawLineF(renderer, r.x + 3 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +3 + (textbox->texture->width),r.y +r.h -3);
-
     }
+    */
 }
 
 void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const char* text)

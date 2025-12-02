@@ -54,6 +54,7 @@ int main(int argc, char* argv[])
         float deltaTime = (currentTimeDelta - lastTime) / 1000.0f;
         lastTime = currentTimeDelta;
 
+        /*
         textbox_append_text(arena, string_memory, textbox, "123456712333333331312312312312312312389h1 lk2<F2>3jne12ho 10283jh o1i2j308 1h2<F2>3j12 3j12 3j");
         if (textbox->string->count > 12312)
         {
@@ -65,6 +66,7 @@ int main(int argc, char* argv[])
             quit = true;
 
         }
+        */
         // Update UI
         ui_update(UIController, deltaTime);
 
