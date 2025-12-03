@@ -354,10 +354,17 @@ void ui_elem_add(UIController* uiC, void* elem, UI_Element type)
     uiC->count += 1;
 }
 
+bool mouse_in_intbox_check(int mx, int my, SDL_Rect* rect)
+{
+    return mx >= rect->x && mx <= rect->x + rect->w && my >= rect->y && my <= rect->y + rect->h;
+}
+
 bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 {
     return mx >= rect->x && mx <= rect->x + rect->w && my >= rect->y && my <= rect->y + rect->h;
 }
+
+void button_basic_click(BasicButton* bb);
 
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, SDL_Event* e)
 {
@@ -392,8 +399,64 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                 }
                 break;
             }
+            case BUTTON_BASIC_ELEM:
+            {
+                BasicButton* bb = (BasicButton*)uiController->element[i];
+                if (mouse_in_intbox_check(mx, my, &bb->rect))
+                {
+                    bb->state = BUTTON_STATE_PRESSED;
+                    button_basic_click(bb);
+                }
+                break;
+            }
             case NULL_ELEM:
                 assert(false);
+                break;
+            }
+        }
+    }
+    else if (e->type == SDL_MOUSEBUTTONUP)
+    {
+        int mx = e->button.x;
+        int my = e->button.y;
+        for(int i = 0; i < uiController->count; ++i)
+        {
+            switch(uiController->type[i])
+            {
+            case BUTTON_BASIC_ELEM:
+            {
+                BasicButton* bb = (BasicButton*)uiController->element[i];
+                if (mouse_in_intbox_check(mx, my, &bb->rect) && bb->state == BUTTON_STATE_PRESSED)
+                    bb->state = BUTTON_STATE_HOVERED;
+                else
+                    bb->state = BUTTON_STATE_NORMAL;
+                break;
+            }
+            case TEXTBOX_ELEM:
+            case NULL_ELEM:
+                break;
+            }
+        }
+    }
+    else if (e->type == SDL_MOUSEMOTION)
+    {
+        int mx = e->motion.x;
+        int my = e->motion.y;
+        for(int i = 0; i < uiController->count; ++i)
+        {
+            switch(uiController->type[i])
+            {
+            case BUTTON_BASIC_ELEM:
+            {
+                BasicButton* bb = (BasicButton*)uiController->element[i];
+                if (mouse_in_intbox_check(mx, my, &bb->rect))
+                    bb->state = BUTTON_STATE_HOVERED;
+                else
+                    bb->state = BUTTON_STATE_NORMAL;
+                break;
+            }
+            case TEXTBOX_ELEM:
+            case NULL_ELEM:
                 break;
             }
         }
@@ -496,6 +559,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
             textbox_render(renderer, tb);
             break;
         }
+        case BUTTON_BASIC_ELEM:
+        {
+            BasicButton* bb = (BasicButton*)uiC->element[i];
+            button_basic_render(renderer, bb);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
@@ -515,12 +584,67 @@ void ui_controller_destroy(UIController* uiC)
             free_texture(tb->texture);
             break;
         }
+        case BUTTON_BASIC_ELEM:
+        {
+            BasicButton* bb = (BasicButton*)uiC->element[i];
+            free_texture(bb->text);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
         }
     }
 }
+
+/* Event Emitter functions */
+
+EventEmitter* event_emitter_init(Arena* arena, uint8_t maxListeners)
+{
+    EventEmitter* em = arena_alloc(arena, sizeof(EventEmitter), NULL);
+    em->listeners = arena_alloc(arena, sizeof(EventNode*) * maxListeners, NULL);
+    em->count = 0;
+    em->maxCount = maxListeners;
+    return em;
+}
+
+int event_emitter_add_listener(Arena* arena, void* uiElement, UI_Element type, EventCallback cb, void* userData)
+{
+    if (!cb || !uiElement) return 0;
+
+    switch (type)
+    {
+    case BUTTON_BASIC_ELEM:
+    {
+        BasicButton* bb = (BasicButton*)uiElement;
+        return button_basic_add_listener(arena, bb, cb, userData);
+        break;
+    }
+    case TEXTBOX_ELEM:
+        break;
+    case NULL_ELEM:
+        assert(false);
+
+    }
+    return 0;
+}
+
+void event_emitter_emit(EventEmitter* em, const Event* ev)
+{
+    bool found = false;
+    for (int i = 0; i < em->maxCount; ++i)
+    {
+        if (em->listeners[i]->type == ev->type)
+        {
+            EventNode* event = em->listeners[i];
+            event->cb(ev, event->userData);
+            found = true;
+            break;
+        }
+    }
+    assert(found && "No event listener found for emitted event" );
+}
+
 
 /* Text box functions */
 
@@ -572,6 +696,8 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
         else if (textbox->texture->height < textbox->rect.h - textbox->fontSize)
             textbox->rect.h -= textbox->fontSize;
     }
+    else if (textbox->string->count == 0)
+        textbox->rect.h = textbox->rect.h > textbox->fontSize + 10 ? textbox->rect.h -= textbox->fontSize : textbox->fontSize + 10;
 
     SDL_Color color = COLOR[GRAY];
     SDL_FRect r = textbox->rect;
@@ -621,7 +747,91 @@ void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const
 }
 
 
-void destroy_complete_screen(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController)
+/* Button funtions */
+
+BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, SDL_Color color, SDL_Renderer* renderer)
+{
+    BasicButton* bb = arena_alloc(arena, sizeof(BasicButton), NULL);
+    bb->text = arena_alloc(arena, sizeof(Texture), NULL);
+    bb->eventEmitter = event_emitter_init(arena, 1);
+    bb->color = color;
+    bb->rect.x = x;
+    bb->rect.y = y;
+    bb->rect.w = width;
+    bb->rect.h = height;
+    bb->state = BUTTON_STATE_NORMAL;
+
+    uint8_t i = DEFAULT_FONT_SIZE;
+    do
+    {
+        assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+        if (i != DEFAULT_FONT_SIZE)
+            free_texture(bb->text);
+
+        TTF_SetFontSize(font, i--);
+        load_texture_from_rendered_text(bb->text, width - 20, text, font, color, renderer);
+    }
+    while (bb->text->height >= bb->rect.h);
+
+    ui_elem_add(uiController, bb, BUTTON_BASIC_ELEM);
+    return bb;
+}
+
+int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, void* userData)
+{
+    assert(bb->eventEmitter->count < bb->eventEmitter->maxCount);
+
+    EventNode* en = arena_alloc(arena, sizeof(EventNode), NULL);
+    en->cb = cb;
+    en->userData = userData;
+    en->type = EVENT_TYPE_CLICK;
+
+    bb->eventEmitter->listeners[bb->eventEmitter->count++] = en;
+    return 1;
+}
+
+void button_basic_click(BasicButton* bb)
+{
+    if (!bb) return;
+    Event ev;
+    ev.type = EVENT_TYPE_CLICK;
+    ev.sourceObj = bb;
+    event_emitter_emit(bb->eventEmitter, &ev);
+}
+
+void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
+{
+    SDL_Color color;
+    switch (button->state)
+    {
+    case BUTTON_STATE_NORMAL:
+        color = COLOR[WHITE];
+        break;
+    case BUTTON_STATE_HOVERED:
+        color = COLOR[LIGHT_GRAY];
+        break;
+    case BUTTON_STATE_PRESSED:
+        color = button->color;
+        break;
+    default:
+        color = COLOR[WHITE];
+        break;
+    }
+    SDL_Rect r = button->rect;
+
+    //Button draw
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderDrawRect(renderer, &r);
+
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
+    SDL_RenderFillRect(renderer, &r);
+
+    //Text render
+    SDL_RenderCopy(renderer, button->text->mTexture, NULL, &button->rect);
+}
+
+void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController)
 {
     string_memory_destroy(sm);
     ui_controller_destroy(uiController);

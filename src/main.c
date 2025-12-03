@@ -3,6 +3,14 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 
+
+/* Example callback (C) */
+void on_button_click(const Event* ev, void* user_data)
+{
+    TextBox* tb = (TextBox*)user_data;
+    tb->string->count = 0;
+}
+
 int main(int argc, char* argv[])
 {
     WindowUI windowUI;
@@ -21,16 +29,18 @@ int main(int argc, char* argv[])
     SDL_Event e;
 
     const char* text = "src/assets/fonts/Limelight-Regular.ttf";
-    const uint8_t DEFAULT_FONT_SIZE = 24;
 
     Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, true);
     StringMemory* string_memory = string_memory_init(arena);
     String* string = string_init(arena, string_memory);
-    UIController* UIController = ui_controller_init(arena, 1);
+    UIController* UIController = ui_controller_init(arena, 2);
     FontHolder* fh = font_holder_init(arena, 1);
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
     TextBox* textbox = textbox_init(arena, UIController, string, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50.0f, 50.0f, 400.0f, DEFAULT_FONT_SIZE + 10);
+    BasicButton* button = button_basic_init(arena, UIController, 500, 50, 150, 50, "Click Me lolo", fh->fonts[0], COLOR[BLUE], windowUI.renderer);
 
+    //event emmitter
+    event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, textbox);
     Uint32 lastTime = SDL_GetTicks();
     while (!quit)
     {
@@ -80,7 +90,7 @@ int main(int argc, char* argv[])
     }
 
     destroy_fonts(fh);
-    destroy_complete_screen(&windowUI, arena, string_memory, UIController);
+    destroy_window(&windowUI, arena, string_memory, UIController);
 
 
 

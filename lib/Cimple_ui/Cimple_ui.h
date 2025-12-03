@@ -7,6 +7,9 @@
 #include <SDL2/SDL_image.h>
 #include <stdbool.h>
 
+
+#define DEFAULT_FONT_SIZE 24
+
 //Colours
 typedef enum
 {
@@ -87,6 +90,7 @@ typedef enum
 {
     NULL_ELEM,
     TEXTBOX_ELEM,
+    BUTTON_BASIC_ELEM
 
 } UI_Element;
 
@@ -111,6 +115,49 @@ void ui_update(UIController* uiC, float deltaTime);
 void ui_render(SDL_Renderer* renderer, UIController* uiC);
 // Destroys all the textures in the UIController
 void ui_controller_destroy(UIController* uiC);
+
+
+/* Event Emitter */
+
+typedef enum
+{
+    EVENT_TYPE_CLICK,
+} EventType;
+
+typedef struct
+{
+    EventType type;
+    void* sourceObj; // pointer to the object Emmitter
+} Event;
+
+/* Callback signature: event pointer + user_data pointer. */
+typedef void (*EventCallback)(const Event* ev, void* user_data);
+
+typedef struct
+{
+    EventType type;
+    EventCallback cb;
+    void* userData;
+} EventNode;
+
+typedef struct
+{
+    EventNode** listeners;
+    uint8_t count;
+    uint8_t maxCount;
+} EventEmitter;
+
+/* Create/destroy emitter */
+EventEmitter* event_emitter_create(Arena* arena);
+void event_emitter_destroy(EventEmitter* em);
+
+/* Register/unregister listeners. Returns >0 id on success, 0 on failure. */
+int event_emitter_add_listener(Arena* arena, void* uiElement, UI_Element type, EventCallback cb, void* userData);
+void event_emitter_remove_listener(EventEmitter* em, int listener_id);
+
+/* Emit an event to all listeners (synchronous). */
+void event_emitter_emit(EventEmitter* em, const Event* ev);
+
 
 /* TextBox */
 
@@ -150,17 +197,20 @@ enum ButtonState
 
 typedef struct
 {
-    Texture* texture;
-    SDL_Rect spriteClip[BUTTON_STATE_TOTAL]; //  states: normal, hovered, pressed, released
-    int xPos;
-    int yPos;
-    uint8_t totalStates;
-    uint8_t currentState;
-} Button;
-
+    SDL_Rect rect;
+    Texture* text;
+    EventEmitter* eventEmitter; // gets one event - on click
+    SDL_Color color;
+    enum ButtonState state;
+} BasicButton;
+// Initializes a basic button with position and size
+BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, SDL_Color color, SDL_Renderer* renderer);
+void button_basic_render(SDL_Renderer* renderer, BasicButton* button);
+//destruction of texture handled in ui_controller_destroy
+int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, void* userData);
 
 /* Helper functions */
 //Completes the destruction of the SDL2 UI system including WindowUI, UIController, StringMemory, and Arena
 //Need to Close any fonts etc before calling this function
-void destroy_complete_screen(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
+void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
 #endif
