@@ -127,6 +127,7 @@ typedef enum
 typedef struct
 {
     EventType type;
+    /* 4-byte hole */
     void* sourceObj; // pointer to the object Emmitter
 } Event;
 
@@ -136,6 +137,7 @@ typedef void (*EventCallback)(const Event* ev, void* user_data);
 typedef struct
 {
     EventType type;
+    /* 4-byte hole */
     EventCallback cb;
     void* userData;
 } EventNode;
@@ -145,6 +147,7 @@ typedef struct
     EventNode** listeners;
     uint8_t count;
     uint8_t maxCount;
+    /*6-byte padding */
 } EventEmitter;
 
 /* Create/destroy emitter */
@@ -177,7 +180,7 @@ typedef struct
 } TextBox;
 
 // Initializes a TextBox structure give width and hight as funtions of screen dimensions
-TextBox* textbox_init(Arena* arena, UIController* uiController, String* string, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height);
+TextBox* textbox_init(Arena* arena, UIController* uiController, StringMemory* sm, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height);
 // Renders the TextBox to the given renderer
 void textbox_render(SDL_Renderer* renderer, TextBox* textbox);
 // Appends c style string text to the TextBox's string
@@ -211,6 +214,6 @@ int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, v
 
 /* Helper functions */
 //Completes the destruction of the SDL2 UI system including WindowUI, UIController, StringMemory, and Arena
-//Need to Close any fonts etc before calling this function
+//destory fonts before calling this function
 void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
 #endif

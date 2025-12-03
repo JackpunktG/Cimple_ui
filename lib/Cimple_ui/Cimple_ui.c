@@ -648,16 +648,16 @@ void event_emitter_emit(EventEmitter* em, const Event* ev)
 
 /* Text box functions */
 
-TextBox* textbox_init(Arena* arena, UIController* uiC, String* string, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height)
+TextBox* textbox_init(Arena* arena, UIController* uiC, StringMemory* sm, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height)
 {
     TextBox* tb = arena_alloc(arena, sizeof(TextBox), NULL);
     tb->texture = arena_alloc(arena, sizeof(Texture), NULL);
+    tb->string = string_init(arena, sm);
     init_texture(tb->texture);
 
     tb->fontSize = fontSize;
     tb->color = color;
     tb->font = font;
-    tb->string = string;
     tb->focused = false;
     tb->caret = false;
     tb->textChanged = false;
