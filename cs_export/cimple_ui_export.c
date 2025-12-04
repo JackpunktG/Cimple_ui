@@ -48,7 +48,7 @@ EXPORT uint32_t CimpleUI_GetWindowHeight(WindowUI_handle window)
 
 EXPORT Arena_handle CimpleUI_CreateArena()
 {
-    return (Arena_handle)arena_init(1024 * 1024, 8, true);
+    return (Arena_handle)arena_init(1024 * 1024, 8, false);
 }
 
 EXPORT void CimpleUI_DestroyArena(Arena_handle arena)
@@ -66,6 +66,13 @@ EXPORT StringMemory_handle CimpleUI_CreateStringMemory(Arena_handle arena, uint1
     return (StringMemory_handle)string_memory_init((Arena*)arena);
 }
 
+EXPORT void CimpleUI_DestroyStringMemory(StringMemory_handle sm)
+{
+    if (sm)
+    {
+        string_memory_destroy((StringMemory*)sm);
+    }
+}
 
 // Font holder
 EXPORT FontHolder_handle CimpleUI_CreateFontHolder(Arena_handle arena, uint8_t maxFonts)
@@ -106,13 +113,26 @@ EXPORT void CimpleUI_DestroyUIController(UIController_handle uiC)
     ui_controller_destroy((UIController*)uiC);
 }
 
+/* Label_handle */
+EXPORT Label_handle CimpleUI_CreateLabel(
+    WindowUI_handle window, Arena_handle arena, UIController_handle uiController,
+    int x, int y, int width, int height, const char* text, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
+{
+    WindowUI* w = (WindowUI*)window;
+    return (Label_handle)label_basic_init((Arena*)arena, (UIController*)uiController, x, y, width, height, text,
+                                          ((FontHolder*)fh)->fonts[fontIndex], fontSize, (SDL_Color)
+    {
+        color.r, color.g, color.b, color.a
+    }, w->renderer);
+}
+
 /* TextBox */
 EXPORT TextBox_handle CimpleUI_CreateTextBox(
     Arena_handle arena,
     UIController_handle uiController,
     StringMemory_handle sm,
-    uint8_t fontIndex,
     FontHolder_handle fh,
+    uint8_t fontIndex,
     uint8_t fontSize,
     ColorRGBA color,
     float x, float y, float width, float height)
@@ -137,12 +157,25 @@ EXPORT void CimpleUI_TextBoxAppendText(Arena_handle arena, StringMemory_handle s
     textbox_append_text((Arena*)arena, (StringMemory*)sm, (TextBox*)textbox, text);
 }
 
-EXPORT const char* CimpleUI_TextBoxGetText(TextBox_handle textbox)
+//
+EXPORT void CimpleUI_TextBox_Clear(TextBox_handle textbox, StringMemory_handle sm, Arena_handle mainArena)
 {
-    char *dest;
+    TextBox* tb = (TextBox*)textbox;
+    StringMemory* stringmem = (StringMemory*)sm;
+    string_clear(tb->string, &stringmem, (Arena*)mainArena);
+    tb->textChanged = true;
+};
+
+EXPORT void CimpleUI_TextBoxGetText(TextBox_handle textbox, char* dest)
+{
     TextBox* tb = (TextBox*)textbox;
     c_string_sendback(tb->string, dest);
-    return dest;
+}
+
+EXPORT uint32_t CimpleUI_TextBoxGetTextLength(TextBox_handle textbox)
+{
+    TextBox* tb = (TextBox*)textbox;
+    return tb->string->count +1;
 }
 
 
@@ -153,6 +186,7 @@ EXPORT BasicButton_handle CimpleUI_CreateButton(
     WindowUI_handle window,
     FontHolder_handle fh,
     uint8_t fontIndex,
+    uint8_t fontSize,
     int x, int y, int width, int height,
     const char* text,
     ColorRGBA color)
@@ -167,6 +201,7 @@ EXPORT BasicButton_handle CimpleUI_CreateButton(
                x, y, width, height,
                text,
                fontHolder->fonts[fontIndex],
+               fontSize,
                sdlColor,
                w->renderer
            );
@@ -194,7 +229,7 @@ EXPORT int CimpleUI_ButtonGetState(BasicButton_handle button)
 }
 
 /* UI-update function */
-EXPORT bool ui_window_event_check(WindowUI_handle window, Arena_handle arena, StringMemory_handle sm, UIController_handle uiC)
+EXPORT bool CimpleUI_event_check(WindowUI_handle window, Arena_handle arena, StringMemory_handle sm, UIController_handle uiC)
 {
     SDL_Event e;
     bool change = false;

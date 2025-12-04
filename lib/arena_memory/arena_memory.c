@@ -72,7 +72,6 @@ Arena* arena_init(size_t blockSize, size_t alignment, bool fl)
         return NULL;
     }
 
-
     //init fields
     arena->defualtBlockSize = blockSize;
     arena->totalAllocated = 0;

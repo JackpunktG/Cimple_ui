@@ -32,12 +32,12 @@ int main(int argc, char* argv[])
 
     Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, true);
     StringMemory* string_memory = string_memory_init(arena);
-    UIController* UIController = ui_controller_init(arena, 2);
+    UIController* UIController = ui_controller_init(arena, 3);
     FontHolder* fh = font_holder_init(arena, 1);
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
     TextBox* textbox = textbox_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50.0f, 50.0f, 400.0f, DEFAULT_FONT_SIZE + 10);
     BasicButton* button = button_basic_init(arena, UIController, 500, 50, 150, 50, "Click Me lolo", fh->fonts[0], COLOR[BLUE], windowUI.renderer);
-
+    Label* label = label_basic_init(arena, UIController, 900, 900, 400, 50, "Press C to quit", fh->fonts[0], COLOR[GREEN], windowUI.renderer);
     //event emmitter
     event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, textbox);
 

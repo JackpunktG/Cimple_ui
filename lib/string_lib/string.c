@@ -263,12 +263,26 @@ void string_dead(Arena* arena, String* string, StringMemory** stringMemory)
         sm->freeMemory[sm->count++] = string->memory[string->memoryChunks-- -1];
         if (sm->count == sm->maxCount)
             resize_string_memory(arena, &sm);
-        //printf("Count: %d | %u\n", ++count, sm->count);
     }
-    arena_free_list_add(arena, string, string->size);
+    if (arena->freeList != NULL)
+        arena_free_list_add(arena, string, string->size);
 
-    //check to see if shrink
-    resize_string_memory(arena, &sm);
+    *stringMemory = sm;
+}
+
+void string_clear(String* string, StringMemory** stringMemory, Arena* arena)
+{
+    StringMemory* sm = *stringMemory;
+    string->count = 0;
+
+    while (string->memoryChunks > 1)
+    {
+        sm->freeMemory[sm->count++] = string->memory[string->memoryChunks-- -1];
+        string->maxCount -= STRING_CHUNK_SIZE;
+        if (sm->count == sm->maxCount)
+            resize_string_memory(arena, &sm);
+    }
+
     *stringMemory = sm;
 }
 

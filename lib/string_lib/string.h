@@ -50,6 +50,8 @@ int string_append_flagdead(Arena* arena, String** string, StringMemory** sm, Str
 void remove_last_char(String* string);
 // sends back a C-style string copy of the String to dest - dest must be preallocated with count + 1 bytes for null terminator
 void c_string_sendback(String* string, char* dest);
+//resets a string to null and gives away any extra memory to the string memory
+void string_clear(String* string, StringMemory** sm, Arena* arena);
 //flags string for reuse
 void string_dead(Arena* arena, String* string, StringMemory** sm);
 

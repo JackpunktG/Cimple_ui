@@ -25,6 +25,7 @@ typedef struct WindowUI_Opaque* WindowUI_handle;
 typedef struct UIController_Opaque* UIController_handle;
 typedef struct TextBox_Opaque* TextBox_handle;
 typedef struct BasicButton_Opaque* BasicButton_handle;
+typedef struct Label_Opaque* Label_handle;
 
 // Color struct
 typedef struct
@@ -52,6 +53,7 @@ EXPORT void CimpleUI_DestroyArena(Arena_handle arena);
 
 // String memory
 EXPORT StringMemory_handle CimpleUI_CreateStringMemory(Arena_handle arena, uint16_t maxStrings);
+EXPORT void CimpleUI_DestroyStringMemory(StringMemory_handle sm);
 
 // Font holder
 EXPORT FontHolder_handle CimpleUI_CreateFontHolder(Arena_handle arena, uint8_t maxFonts);
@@ -65,20 +67,26 @@ EXPORT void CimpleUI_RenderUI(WindowUI_handle window, UIController_handle uiC);
 EXPORT void CimpleUI_DestroyUIController(UIController_handle uiC);
 
 // SDL_event check - returns true on windows size update
-EXPORT bool ui_window_event_check(WindowUI_handle window, Arena_handle arena, StringMemory_handle sm, UIController_handle uiC);
+EXPORT bool CimpleUI_event_check(WindowUI_handle window, Arena_handle arena, StringMemory_handle sm, UIController_handle uiC);
+
+// Label_handle
+EXPORT Label_handle CimpleUI_CreateLabel(WindowUI_handle window, Arena_handle arena, UIController_handle uiController, int x, int y, int width, int height, const char* text, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color);
 
 // TextBox_handle
 EXPORT TextBox_handle CimpleUI_CreateTextBox(
     Arena_handle arena,
     UIController_handle uiController,
     StringMemory_handle sm,
-    uint8_t fontIndex,
     FontHolder_handle fh,
+    uint8_t fontIndex,
     uint8_t fontSize,
     ColorRGBA color,
     float x, float y, float width, float height);
 EXPORT void CimpleUI_TextBoxAppendText(Arena_handle arena, StringMemory_handle sm, TextBox_handle textbox, const char* text);
-EXPORT const char* CimpleUI_TextBoxGetText(TextBox_handle textbox);
+EXPORT void CimpleUI_TextBoxGetText(TextBox_handle textbox, char* dest);
+//adds 1 for null terminator
+EXPORT uint32_t CimpleUI_TextBoxGetTextLength(TextBox_handle textbox);
+EXPORT void CimpleUI_TextBox_Clear(TextBox_handle textbox, StringMemory_handle sm, Arena_handle arena);
 
 // Button
 EXPORT BasicButton_handle CimpleUI_CreateButton(
@@ -87,6 +95,7 @@ EXPORT BasicButton_handle CimpleUI_CreateButton(
     WindowUI_handle window,
     FontHolder_handle fh,
     uint8_t fontIndex,
+    uint8_t fontSize,
     int x, int y, int width, int height,
     const char* text,
     ColorRGBA color);
