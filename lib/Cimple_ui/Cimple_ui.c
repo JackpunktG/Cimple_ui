@@ -116,8 +116,6 @@ bool init_SDL2_ui(WindowUI* windowUI, const char* title, uint32_t width, uint32_
     if (!init_resizable_window(&windowUI->window, title, width, height))
         return false;
 
-    if (!init_TTF()) return false;
-
     if (vsync)
     {
         if (!init_renderer_vsync(windowUI->window, &windowUI->renderer))
@@ -240,7 +238,6 @@ void destroy_SDL2_ui(WindowUI* window)
         window->window = NULL;
     }
     IMG_Quit();
-    TTF_Quit();
     SDL_Quit();
 }
 
@@ -252,6 +249,8 @@ FontHolder* font_holder_init(Arena* arena, uint8_t maxFonts)
     fb->fonts = arena_alloc(arena, sizeof(TTF_Font*) * maxFonts, NULL);
     fb->count = 0;
     fb->maxCount = maxFonts;
+
+    init_TTF();
     return fb;
 }
 
@@ -273,6 +272,7 @@ void destroy_fonts(FontHolder* fh)
     {
         TTF_CloseFont(fh->fonts[i]);
     }
+    TTF_Quit();
 }
 
 /* Texture & Renderer Functions */
@@ -565,6 +565,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
             button_basic_render(renderer, bb);
             break;
         }
+        case LABEL_ELEM:
+        {
+            Label* label = (Label*)uiC->element[i];
+            label_basic_render(renderer, label);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
@@ -590,10 +596,70 @@ void ui_controller_destroy(UIController* uiC)
             free_texture(bb->text);
             break;
         }
+        case LABEL_ELEM:
+        {
+            Label* label = (Label*)uiC->element[i];
+            free_texture(label->text);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
         }
+    }
+}
+
+/* Label functions */
+
+Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, uint8_t fontsize, SDL_Color color, SDL_Renderer* renderer)
+{
+    Label* l = arena_alloc(arena, sizeof(Label), NULL);
+    l->text = arena_alloc(arena, sizeof(Texture), NULL);
+    init_texture(l->text);
+    l->rect.x = x;
+    l->rect.y = y;
+    l->rect.w = width;
+    l->rect.h = height;
+
+    if (fontsize != 0)
+    {
+        TTF_SetFontSize(font, fontsize);
+        load_texture_from_rendered_text(l->text, width, text, font, color, renderer);
+    }
+    else
+    {
+        uint8_t i = DEFAULT_FONT_SIZE;
+        do
+        {
+            assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+            if (i != DEFAULT_FONT_SIZE)
+                free_texture(l->text);
+
+            TTF_SetFontSize(font, i--);
+            load_texture_from_rendered_text(l->text, width -20, text, font, color, renderer);
+        }
+        while (l->text->height >= l->rect.h);
+    }
+
+    ui_elem_add(uiController, l, LABEL_ELEM);
+
+    return l;
+}
+
+
+void label_basic_render(SDL_Renderer* renderer, Label* label)
+{
+    if (label->text->mTexture != NULL)
+    {
+        SDL_FRect dst =
+        {
+            roundf(label->rect.x + (label->rect.w / 2) - (float)label->text->width / 2),
+            roundf(label->rect. y + (label->rect.h / 2) - (float)label->text->height / 2),
+            (float)label->text->width,
+            (float)label->text->height
+        };
+        SDL_RenderCopyF(renderer, label->text->mTexture, NULL, &dst);
     }
 }
 
@@ -749,7 +815,7 @@ void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const
 
 /* Button funtions */
 
-BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, SDL_Color color, SDL_Renderer* renderer)
+BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, uint8_t fontsize, SDL_Color color, SDL_Renderer* renderer)
 {
     BasicButton* bb = arena_alloc(arena, sizeof(BasicButton), NULL);
     bb->text = arena_alloc(arena, sizeof(Texture), NULL);
@@ -761,18 +827,26 @@ BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, 
     bb->rect.h = height;
     bb->state = BUTTON_STATE_NORMAL;
 
-    uint8_t i = DEFAULT_FONT_SIZE;
-    do
+    if (fontsize != 0)
     {
-        assert(i > 0 && "Font size could not be adjusted to fit button text");
-
-        if (i != DEFAULT_FONT_SIZE)
-            free_texture(bb->text);
-
-        TTF_SetFontSize(font, i--);
-        load_texture_from_rendered_text(bb->text, width - 20, text, font, color, renderer);
+        TTF_SetFontSize(font, fontsize);
+        load_texture_from_rendered_text(bb->text, width, text, font, color, renderer);
     }
-    while (bb->text->height >= bb->rect.h);
+    else
+    {
+        uint8_t i = DEFAULT_FONT_SIZE;
+        do
+        {
+            assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+            if (i != DEFAULT_FONT_SIZE)
+                free_texture(bb->text);
+
+            TTF_SetFontSize(font, i--);
+            load_texture_from_rendered_text(bb->text, width - 10, text, font, color, renderer);
+        }
+        while (bb->text->height >= bb->rect.h);
+    }
 
     ui_elem_add(uiController, bb, BUTTON_BASIC_ELEM);
     return bb;
@@ -828,7 +902,12 @@ void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
     SDL_RenderFillRect(renderer, &r);
 
     //Text render
-    SDL_RenderCopy(renderer, button->text->mTexture, NULL, &button->rect);
+    SDL_FRect dst = {roundf(r.x + ((float)r.w / 2)) - (float)button->text->width / 2,
+                     roundf(r.y + ((float)r.h / 2)) - (float)button->text->height / 2,
+                     (float)button->text->width,
+                     (float)button->text->height
+                    };
+    SDL_RenderCopyF(renderer, button->text->mTexture, NULL, &dst);
 }
 
 void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController)

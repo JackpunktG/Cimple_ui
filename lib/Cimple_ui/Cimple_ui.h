@@ -90,8 +90,8 @@ typedef enum
 {
     NULL_ELEM,
     TEXTBOX_ELEM,
-    BUTTON_BASIC_ELEM
-
+    BUTTON_BASIC_ELEM,
+    LABEL_ELEM
 } UI_Element;
 
 typedef struct
@@ -109,12 +109,24 @@ typedef struct
 //Initializes a screens UIController with the number of elements per screen for easy freeing after screen is done
 UIController* ui_controller_init(Arena* arena, uint16_t totalElements);
 // checks UI elements to see if it is being interacted with and controller appending text etc
-void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, SDL_Event* e);
-// Updates UI elements (for caret blinking, etc)
+void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, SDL_Event* e); // Updates UI elements (for caret blinking, etc)
 void ui_update(UIController* uiC, float deltaTime);
 void ui_render(SDL_Renderer* renderer, UIController* uiC);
 // Destroys all the textures in the UIController
 void ui_controller_destroy(UIController* uiC);
+
+
+/* Label Element */
+typedef struct
+{
+    SDL_FRect rect;
+    Texture* text;
+} Label;
+// Initializes a basic label with position and size
+//if fontSize is 0, uses font's max font size that fits in box
+Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int hight, const char* text, TTF_Font* font, uint8_t fontSize, SDL_Color color, SDL_Renderer* renderer);
+void label_basic_render(SDL_Renderer* renderer, Label* label);
+//destroy of texture handled in ui_controller_destroy
 
 
 /* Event Emitter */
@@ -207,7 +219,8 @@ typedef struct
     enum ButtonState state;
 } BasicButton;
 // Initializes a basic button with position and size
-BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, SDL_Color color, SDL_Renderer* renderer);
+// if fontSize is 0, uses font's max font size that fits in box
+BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, uint8_t fontSize, SDL_Color color, SDL_Renderer* renderer);
 void button_basic_render(SDL_Renderer* renderer, BasicButton* button);
 //destruction of texture handled in ui_controller_destroy
 int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, void* userData);
