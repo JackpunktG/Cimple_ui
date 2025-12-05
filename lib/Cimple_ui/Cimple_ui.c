@@ -3,6 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <assert.h>
 
 const SDL_Color COLOR[TOTAL] =
@@ -46,6 +47,19 @@ bool init_SDL()
 bool init_resizable_window(SDL_Window** windowUI, const char* title, uint32_t width, uint32_t height)
 {
     *windowUI = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (*windowUI == NULL)
+    {
+        printf("ERROR init windowUI! MSG: %s\n", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
+bool init_popup_window(SDL_Window** windowUI, const char* title, uint32_t width, uint32_t height)
+{
+    int x, y;
+    SDL_GetGlobalMouseState(&x, &y);
+    *windowUI = SDL_CreateWindow(title, x - (width /2), y - (height / 2), width, height, SDL_WINDOW_SHOWN);
     if (*windowUI == NULL)
     {
         printf("ERROR init windowUI! MSG: %s\n", SDL_GetError());
@@ -143,6 +157,21 @@ bool init_SDL2_ui(WindowUI* windowUI, const char* title, uint32_t width, uint32_
     return true;
 }
 
+WindowUI* create_arena_window_popup(const char* title, uint32_t width, uint32_t height, Arena* arena)
+{
+    WindowUI* windowUI = arena_alloc(arena, sizeof(WindowUI), NULL);
+    if (!init_popup_window(&windowUI->window, title, width, height))
+        return NULL;
+    if (!init_renderer(windowUI->window, &windowUI->renderer))
+        return NULL;
+
+    windowUI->fullscreen = false;
+    windowUI->width = width;
+    windowUI->height = height;
+
+    return windowUI;
+}
+
 WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, bool vsync, bool fullscreen)
 {
     WindowUI* windowUI = arena_alloc(arena, sizeof(WindowUI), NULL);
@@ -224,6 +253,7 @@ bool windowUI_update(WindowUI* window, SDL_Event* e)
     return size_changed;
 }
 
+
 void destroy_SDL2_ui(WindowUI* window)
 {
     if (window->renderer != NULL)
@@ -239,6 +269,21 @@ void destroy_SDL2_ui(WindowUI* window)
     }
     IMG_Quit();
     SDL_Quit();
+}
+
+void destroy_popup_window(WindowUI* window)
+{
+    if (window->renderer != NULL)
+    {
+        SDL_DestroyRenderer(window->renderer);
+        window->renderer = NULL;
+    }
+
+    if (window->window != NULL)
+    {
+        SDL_DestroyWindow(window->window);
+        window->window = NULL;
+    }
 }
 
 /* Font Holder */
@@ -366,8 +411,12 @@ bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 
 void button_basic_click(BasicButton* bb);
 
-void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, SDL_Event* e)
+void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e)
 {
+    if (e->window.windowID != SDL_GetWindowID(window->window)) return;
+
+    printf("UI Event Check: Event Type %d\n", e->type);
+
     if (e->type == SDL_MOUSEBUTTONDOWN)
     {
         int mx = e->button.x;
@@ -611,7 +660,9 @@ void ui_controller_destroy(UIController* uiC)
 
 /* Label functions */
 
-Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height, const char* text, TTF_Font* font, uint8_t fontsize, SDL_Color color, SDL_Renderer* renderer)
+Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int height,
+                        const char* text, TTF_Font* font, uint8_t fontsize, SDL_Color color,
+                        SDL_Renderer* renderer)
 {
     Label* l = arena_alloc(arena, sizeof(Label), NULL);
     l->text = arena_alloc(arena, sizeof(Texture), NULL);
@@ -642,7 +693,7 @@ Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, 
         while (l->text->height >= l->rect.h);
     }
 
-    ui_elem_add(uiController, l, LABEL_ELEM);
+    if (uiController != NULL) ui_elem_add(uiController, l, LABEL_ELEM);
 
     return l;
 }
@@ -848,7 +899,8 @@ BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, 
         while (bb->text->height >= bb->rect.h);
     }
 
-    ui_elem_add(uiController, bb, BUTTON_BASIC_ELEM);
+    if (uiController != NULL) ui_elem_add(uiController, bb, BUTTON_BASIC_ELEM);
+
     return bb;
 }
 
@@ -902,11 +954,13 @@ void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
     SDL_RenderFillRect(renderer, &r);
 
     //Text render
-    SDL_FRect dst = {roundf(r.x + ((float)r.w / 2)) - (float)button->text->width / 2,
-                     roundf(r.y + ((float)r.h / 2)) - (float)button->text->height / 2,
-                     (float)button->text->width,
-                     (float)button->text->height
-                    };
+    SDL_FRect dst =
+    {
+        roundf(r.x + ((float)r.w / 2) - (float)button->text->width / 2),
+        roundf(r.y + ((float)r.h / 2) - (float)button->text->height / 2),
+        (float)button->text->width,
+        (float)button->text->height
+    };
     SDL_RenderCopyF(renderer, button->text->mTexture, NULL, &dst);
 }
 
@@ -916,4 +970,127 @@ void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIContro
     ui_controller_destroy(uiController);
     arena_destroy(arena);
     destroy_SDL2_ui(windowUI);
+}
+
+/* PopUp functions */
+
+typedef struct
+{
+    Arena* arena;
+    TTF_Font* font;
+    SDL_Color color;
+    char* notice;
+    char* button;
+    uint32_t width;
+    uint32_t height;
+} PopUpNoticeParam;
+
+void popup_button_check(BasicButton* bb, WindowUI* window, SDL_Event* e)
+{
+    if (e->window.windowID != SDL_GetWindowID(window->window)) return;
+
+    printf("Popup Button Check: Event Type %d\n", e->type);
+
+    if (e->type == SDL_MOUSEMOTION)
+    {
+        int mx = e->motion.x;
+        int my = e->motion.y;
+        if (mouse_in_intbox_check(mx, my, &bb->rect))
+            bb->state = BUTTON_STATE_HOVERED;
+        else
+            bb->state = BUTTON_STATE_NORMAL;
+    }
+    else if (e->type == SDL_MOUSEBUTTONUP)
+    {
+        int mx = e->button.x;
+        int my = e->button.y;
+        if (mouse_in_intbox_check(mx, my, &bb->rect) && bb->state == BUTTON_STATE_PRESSED)
+            bb->state = BUTTON_STATE_HOVERED;
+        else
+            bb->state = BUTTON_STATE_NORMAL;
+    }
+    else if (e->type == SDL_MOUSEBUTTONDOWN)
+    {
+        int mx = e->button.x;
+        int my = e->button.y;
+        if (mouse_in_intbox_check(mx, my, &bb->rect))
+        {
+            bb->state = BUTTON_STATE_PRESSED;
+            button_basic_click(bb);
+        }
+    }
+}
+
+void notice_button_click(const Event* ev, void* userData)
+{
+    bool* displaying = (bool*)userData;
+
+    *displaying = false;
+    printf("here\n");
+}
+
+void* pop_up_notice(void* arg)
+{
+
+    PopUpNoticeParam* param = (PopUpNoticeParam*)arg;
+
+    WindowUI* window = create_arena_window_popup("PopUp", param->width, param->height, param->arena);
+    Label* label = label_basic_init(param->arena, NULL, 0, 0, param->width, param->height / 2, param->notice, param->font, 0, param->color, window->renderer);
+    BasicButton* button = button_basic_init(param->arena, NULL, param->width / 4, param->height / 2, param->width / 2, param->height / 2, param->button, param->font, 0, param->color, window->renderer);
+
+    bool displaying = true;
+    event_emitter_add_listener(param->arena, button, BUTTON_BASIC_ELEM, notice_button_click, &displaying);
+
+    SDL_Event e;
+
+    while(displaying)
+    {
+        while(SDL_PollEvent(&e) != 0)
+            popup_button_check(button, window, &e);
+
+        clear_screen_with_color(window->renderer, COLOR[BLACK]);
+
+        label_basic_render(window->renderer, label);
+        button_basic_render(window->renderer, button);
+        SDL_RenderPresent(window->renderer);
+
+        SDL_Delay(32);
+    }
+
+    free_texture(label->text);
+    free_texture(button->text);
+    destroy_popup_window(window);
+
+    arena_destroy(param->arena);
+
+    return NULL;
+}
+
+
+void popup_notice_init(const char* notice, const char* button, uint32_t width, uint32_t height, TTF_Font* font, SDL_Color color)
+{
+    pthread_t threadPopUp;
+
+    uint16_t noticeLength = strlen(notice) +1; //plus 1 to allow space for \0
+    uint16_t buttonLength = strlen(button) +1;
+    Arena* popupArena = arena_init(ARENA_BLOCK_SIZE / 8, 8, false);
+    PopUpNoticeParam* param = arena_alloc(popupArena, sizeof(PopUpNoticeParam), NULL);
+    param->arena = popupArena;
+    param->height = height;
+    param->width = width;
+    param->font = font;
+    param->color = color;
+    param->notice = arena_alloc(popupArena, sizeof(char) * noticeLength, NULL);
+    for(int i = 0; i < noticeLength; ++i)
+        param->notice[i] = notice[i];
+    param->button = arena_alloc(popupArena, sizeof(char) * buttonLength, NULL);
+    for(int i = 0; i < buttonLength; ++i)
+        param->button[i] = button[i];
+
+    pthread_create(&threadPopUp, NULL, pop_up_notice, param);
+
+    // doesn't need to be joined later - self ending
+    pthread_detach(threadPopUp);
+
+    return;
 }

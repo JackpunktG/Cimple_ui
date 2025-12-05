@@ -236,7 +236,7 @@ EXPORT bool CimpleUI_event_check(WindowUI_handle window, Arena_handle arena, Str
 
     while(SDL_PollEvent(&e) != 0)
     {
-        ui_event_check((Arena*)arena, (StringMemory*)sm, (UIController*)uiC, &e);
+        ui_event_check((Arena*)arena, (StringMemory*)sm, (UIController*)uiC, (WindowUI*)window, &e);
 
         if (windowUI_update((WindowUI*)window, &e) || windowUI_fullscreen((WindowUI*)window, &e))
             change = true;

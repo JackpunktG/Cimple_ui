@@ -109,8 +109,8 @@ typedef struct
 //Initializes a screens UIController with the number of elements per screen for easy freeing after screen is done
 UIController* ui_controller_init(Arena* arena, uint16_t totalElements);
 // checks UI elements to see if it is being interacted with and controller appending text etc
-void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, SDL_Event* e); // Updates UI elements (for caret blinking, etc)
-void ui_update(UIController* uiC, float deltaTime);
+void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e);
+void ui_update(UIController* uiC, float deltaTime); // Updates UI elements (for caret blinking, etc)
 void ui_render(SDL_Renderer* renderer, UIController* uiC);
 // Destroys all the textures in the UIController
 void ui_controller_destroy(UIController* uiC);
@@ -229,4 +229,20 @@ int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, v
 //Completes the destruction of the SDL2 UI system including WindowUI, UIController, StringMemory, and Arena
 //destory fonts before calling this function
 void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
+
+
+/* Pop-ups */
+typedef struct
+{
+    WindowUI* window;
+    Label* label;
+    BasicButton* button;
+    UIController* uiContoller;
+} PopUpNotice;
+
+//creates a new thread that displays a basic pop up destory itself on button press
+void popup_notice_init(const char* notice, const char* button, uint32_t width, uint32_t height, TTF_Font* font, SDL_Color color);
+
+
+
 #endif

@@ -5,10 +5,10 @@
 
 
 /* Example callback (C) */
-void on_button_click(const Event* ev, void* user_data)
+void on_button_click(const Event* ev, void* userData)
 {
-    TextBox* tb = (TextBox*)user_data;
-    tb->string->count = 0;
+    TTF_Font* font = (TTF_Font*)userData;
+    popup_notice_init("Here is the notice", "here i wanna button", 200, 100, font, COLOR[BLUE]);
 }
 
 int main(int argc, char* argv[])
@@ -36,10 +36,10 @@ int main(int argc, char* argv[])
     FontHolder* fh = font_holder_init(arena, 1);
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
     TextBox* textbox = textbox_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50.0f, 50.0f, 400.0f, DEFAULT_FONT_SIZE + 10);
-    BasicButton* button = button_basic_init(arena, UIController, 500, 50, 150, 50, "Click Me lolo", fh->fonts[0], COLOR[BLUE], windowUI.renderer);
-    Label* label = label_basic_init(arena, UIController, 900, 900, 400, 50, "Press C to quit", fh->fonts[0], COLOR[GREEN], windowUI.renderer);
+    BasicButton* button = button_basic_init(arena, UIController, 500, 50, 150, 50, "Click Me lolo", fh->fonts[0], 0, COLOR[BLUE], windowUI.renderer);
+    Label* label = label_basic_init(arena, UIController, 900, 900, 400, 50, "Press C to quit", fh->fonts[0], 0, COLOR[GREEN], windowUI.renderer);
     //event emmitter
-    event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, textbox);
+    event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, fh->fonts[0]);
 
     Uint32 lastTime = SDL_GetTicks();
     while (!quit)
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
                 screen_width = windowUI.width;
                 screen_height = windowUI.height;
             }
-            ui_event_check(arena, string_memory, UIController, &e);
+            ui_event_check(arena, string_memory, UIController, &windowUI, &e);
         }
         Uint32 currentTimeDelta = SDL_GetTicks();
         float deltaTime = (currentTimeDelta - lastTime) / 1000.0f;
