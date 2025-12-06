@@ -399,6 +399,16 @@ void ui_elem_add(UIController* uiC, void* elem, UI_Element type)
     uiC->count += 1;
 }
 
+void ui_elem_remove(UIController* uiC, uint16_t elemIndex)
+{
+    for (int i = elemIndex; i < uiC->count -1; ++i)
+    {
+        uiC->type[i] = uiC->type[i+1];
+        uiC->element[i] = uiC->element[i+1];
+    }
+    uiC->count--;
+}
+
 bool mouse_in_intbox_check(int mx, int my, SDL_Rect* rect)
 {
     return mx >= rect->x && mx <= rect->x + rect->w && my >= rect->y && my <= rect->y + rect->h;
@@ -410,12 +420,30 @@ bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 }
 
 void button_basic_click(BasicButton* bb);
+void popup_button_check(BasicButton* button, SDL_Event* e);
 
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e)
 {
-    if (e->window.windowID != SDL_GetWindowID(window->window)) return;
+    if (e->window.windowID != SDL_GetWindowID(window->window))
+    {
+        for (int i = 0; i < uiController->count; ++i)
+        {
+            switch(uiController->type[i])
+            {
+            case POPUP_NOTICE_ELEM:
+            {
+                PopUpNotice* pn = (PopUpNotice*)uiController->element[i];
+                if (e->window.windowID == SDL_GetWindowID(pn->window->window))
+                    popup_button_check(pn->button, e);
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
 
-    printf("UI Event Check: Event Type %d\n", e->type);
+    // printf("UI Event Check: Event Type %d\n", e->type);
 
     if (e->type == SDL_MOUSEBUTTONDOWN)
     {
@@ -451,10 +479,11 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case BUTTON_BASIC_ELEM:
             {
                 BasicButton* bb = (BasicButton*)uiController->element[i];
-                if (mouse_in_intbox_check(mx, my, &bb->rect))
+                if (bb->cooldownTimer <= 0 && mouse_in_intbox_check(mx, my, &bb->rect))
                 {
                     bb->state = BUTTON_STATE_PRESSED;
                     button_basic_click(bb);
+                    bb->cooldownTimer = 0.5f; //500 ms cooldown
                 }
                 break;
             }
@@ -565,6 +594,39 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
 
 void ui_update(UIController* uiC, float deltaTime)
 {
+    //Button cooldown update
+    for (int i  = 0; i < uiC->count; ++i)
+    {
+        switch(uiC->type[i])
+        {
+        case BUTTON_BASIC_ELEM:
+        {
+            BasicButton* bb = (BasicButton*)uiC->element[i];
+            if (bb->cooldownTimer > 0.0f)
+            {
+                bb->cooldownTimer -= deltaTime;
+            }
+            break;
+        }
+        case POPUP_NOTICE_ELEM:
+        {
+            PopUpNotice* pn = (PopUpNotice*)uiC->element[i];
+            if (!pn->displaying)
+            {
+                popup_notice_destroy(pn);
+                ui_elem_remove(uiC, i--);
+                continue;
+            }
+            break;
+        }
+        case TEXTBOX_ELEM:
+        case LABEL_ELEM:
+        case NULL_ELEM:
+            break;
+        }
+    }
+
+    //Caret blinking
     if (uiC->elemFocus != NULL)
     {
         uiC->secondCounter += deltaTime;
@@ -618,6 +680,14 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
         {
             Label* label = (Label*)uiC->element[i];
             label_basic_render(renderer, label);
+            break;
+        }
+        case POPUP_NOTICE_ELEM:
+        {
+            PopUpNotice* pn = (PopUpNotice*)uiC->element[i];
+            button_basic_render(pn->window->renderer, pn->button);
+            label_basic_render(pn->window->renderer, pn->label);
+            SDL_RenderPresent(pn->window->renderer);
             break;
         }
         case NULL_ELEM:
@@ -876,6 +946,7 @@ BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, 
     bb->rect.y = y;
     bb->rect.w = width;
     bb->rect.h = height;
+    bb->cooldownTimer = 0.0f;
     bb->state = BUTTON_STATE_NORMAL;
 
     if (fontsize != 0)
@@ -974,22 +1045,9 @@ void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIContro
 
 /* PopUp functions */
 
-typedef struct
+void popup_button_check(BasicButton* bb, SDL_Event* e)
 {
-    Arena* arena;
-    TTF_Font* font;
-    SDL_Color color;
-    char* notice;
-    char* button;
-    uint32_t width;
-    uint32_t height;
-} PopUpNoticeParam;
-
-void popup_button_check(BasicButton* bb, WindowUI* window, SDL_Event* e)
-{
-    if (e->window.windowID != SDL_GetWindowID(window->window)) return;
-
-    printf("Popup Button Check: Event Type %d\n", e->type);
+    //printf("Popup Button Check: Event Type %d\n", e->type);
 
     if (e->type == SDL_MOUSEMOTION)
     {
@@ -1023,74 +1081,40 @@ void popup_button_check(BasicButton* bb, WindowUI* window, SDL_Event* e)
 
 void notice_button_click(const Event* ev, void* userData)
 {
-    bool* displaying = (bool*)userData;
-
-    *displaying = false;
-    printf("here\n");
-}
-
-void* pop_up_notice(void* arg)
-{
-
-    PopUpNoticeParam* param = (PopUpNoticeParam*)arg;
-
-    WindowUI* window = create_arena_window_popup("PopUp", param->width, param->height, param->arena);
-    Label* label = label_basic_init(param->arena, NULL, 0, 0, param->width, param->height / 2, param->notice, param->font, 0, param->color, window->renderer);
-    BasicButton* button = button_basic_init(param->arena, NULL, param->width / 4, param->height / 2, param->width / 2, param->height / 2, param->button, param->font, 0, param->color, window->renderer);
-
-    bool displaying = true;
-    event_emitter_add_listener(param->arena, button, BUTTON_BASIC_ELEM, notice_button_click, &displaying);
-
-    SDL_Event e;
-
-    while(displaying)
-    {
-        while(SDL_PollEvent(&e) != 0)
-            popup_button_check(button, window, &e);
-
-        clear_screen_with_color(window->renderer, COLOR[BLACK]);
-
-        label_basic_render(window->renderer, label);
-        button_basic_render(window->renderer, button);
-        SDL_RenderPresent(window->renderer);
-
-        SDL_Delay(32);
-    }
-
-    free_texture(label->text);
-    free_texture(button->text);
-    destroy_popup_window(window);
-
-    arena_destroy(param->arena);
-
-    return NULL;
+    PopUpNotice* p = (PopUpNotice*)userData;
+    p->displaying = false;
 }
 
 
-void popup_notice_init(const char* notice, const char* button, uint32_t width, uint32_t height, TTF_Font* font, SDL_Color color)
+PopUpNotice* popup_notice_init(UIController* uiC, const char* notice, const char* button, TTF_Font* font, uint32_t width, uint32_t height,SDL_Color color)
 {
-    pthread_t threadPopUp;
+    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
 
-    uint16_t noticeLength = strlen(notice) +1; //plus 1 to allow space for \0
-    uint16_t buttonLength = strlen(button) +1;
-    Arena* popupArena = arena_init(ARENA_BLOCK_SIZE / 8, 8, false);
-    PopUpNoticeParam* param = arena_alloc(popupArena, sizeof(PopUpNoticeParam), NULL);
-    param->arena = popupArena;
-    param->height = height;
-    param->width = width;
-    param->font = font;
-    param->color = color;
-    param->notice = arena_alloc(popupArena, sizeof(char) * noticeLength, NULL);
-    for(int i = 0; i < noticeLength; ++i)
-        param->notice[i] = notice[i];
-    param->button = arena_alloc(popupArena, sizeof(char) * buttonLength, NULL);
-    for(int i = 0; i < buttonLength; ++i)
-        param->button[i] = button[i];
+    PopUpNotice* popup = arena_alloc(arena, sizeof(PopUpNotice), NULL);
+    popup->arena = arena;
+    popup->window = create_arena_window_popup("PopUp", width, height, arena);
+    printf("size of popup %zu\n", popup->arena->current->used);
+    popup->label = label_basic_init(arena, NULL, 0, 0, width, height / 2, notice, font, 0, color, popup->window->renderer);
+    printf("size of popup %zu\n", popup->arena->current->used);
+    popup->button = button_basic_init(arena, NULL, width / 4, height / 2, width / 3, height / 3, button, font, 0, color, popup->window->renderer);
+    printf("size of popup %zu\n", popup->arena->current->used);
+    popup->displaying = true;
 
-    pthread_create(&threadPopUp, NULL, pop_up_notice, param);
+    event_emitter_add_listener(arena, popup->button, BUTTON_BASIC_ELEM, notice_button_click, popup);
+    printf("size of popup %zu\n", popup->arena->current->used);
+    printf("size of allocated %zu\n", popup->arena->totalAllocated);
 
-    // doesn't need to be joined later - self ending
-    pthread_detach(threadPopUp);
 
-    return;
+    ui_elem_add(uiC, popup, POPUP_NOTICE_ELEM);
+
+    return popup;
+}
+
+void popup_notice_destroy(PopUpNotice* popup)
+{
+    free_texture(popup->label->text);
+    free_texture(popup->button->text);
+    destroy_popup_window(popup->window);
+
+    arena_destroy(popup->arena);
 }

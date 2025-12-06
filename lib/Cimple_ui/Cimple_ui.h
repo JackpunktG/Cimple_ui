@@ -91,6 +91,7 @@ typedef enum
     NULL_ELEM,
     TEXTBOX_ELEM,
     BUTTON_BASIC_ELEM,
+    POPUP_NOTICE_ELEM,
     LABEL_ELEM
 } UI_Element;
 
@@ -216,6 +217,7 @@ typedef struct
     Texture* text;
     EventEmitter* eventEmitter; // gets one event - on click
     SDL_Color color;
+    float cooldownTimer;
     enum ButtonState state;
 } BasicButton;
 // Initializes a basic button with position and size
@@ -237,12 +239,12 @@ typedef struct
     WindowUI* window;
     Label* label;
     BasicButton* button;
-    UIController* uiContoller;
+    Arena* arena;
+    bool displaying;
 } PopUpNotice;
 
-//creates a new thread that displays a basic pop up destory itself on button press
-void popup_notice_init(const char* notice, const char* button, uint32_t width, uint32_t height, TTF_Font* font, SDL_Color color);
-
-
+//basic pop up destory itself on button press
+PopUpNotice* popup_notice_init(UIController* uiC, const char* notice, const char* button, TTF_Font* font, uint32_t width, uint32_t height, SDL_Color color);
+void popup_notice_destroy(PopUpNotice* popup);
 
 #endif
