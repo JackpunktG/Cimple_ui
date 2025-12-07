@@ -92,7 +92,8 @@ typedef enum
     TEXTBOX_ELEM,
     BUTTON_BASIC_ELEM,
     POPUP_NOTICE_ELEM,
-    LABEL_ELEM
+    LABEL_ELEM,
+    TABPANNEL_ELEM
 } UI_Element;
 
 typedef struct
@@ -122,6 +123,7 @@ typedef struct
 {
     SDL_FRect rect;
     Texture* text;
+    bool hidden;
 } Label;
 // Initializes a basic label with position and size
 //if fontSize is 0, uses font's max font size that fits in box
@@ -204,11 +206,13 @@ void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const
 /* Button */
 enum ButtonState
 {
-    BUTTON_STATE_NORMAL = 0,
-    BUTTON_STATE_PRESSED = 1,
-    BUTTON_STATE_HOVERED = 2,
-    BUTTON_STATE_RELEASED = 3,
-    BUTTON_STATE_TOTAL = 4
+    BUTTON_STATE_NORMAL,
+    BUTTON_STATE_PRESSED,
+    BUTTON_STATE_HOVERED,
+    BUTTON_STATE_RELEASED,
+    BUTTON_TAB,
+    BUTTON_TAB_SELECTED,
+    BUTTON_STATE_TOTAL
 };
 
 typedef struct
@@ -219,6 +223,7 @@ typedef struct
     SDL_Color color;
     float cooldownTimer;
     enum ButtonState state;
+    bool hidden;
 } BasicButton;
 // Initializes a basic button with position and size
 // if fontSize is 0, uses font's max font size that fits in box
@@ -232,6 +237,38 @@ int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, v
 //destory fonts before calling this function
 void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
 
+/* Tab Pannel */
+/* Allowing in one window mutliple tabs of differing elements being displayed when clicked */
+
+enum TabPannelPossition
+{
+    TABPANNEL_TOP,
+    TABPANNEL_BUTTOM
+};
+
+typedef struct
+{
+    void** pannelElems;
+    UI_Element* type;
+    uint8_t elemCount;
+    uint8_t maxCount;
+} Pannel;
+
+typedef struct
+{
+    BasicButton** tabButtons;
+    uint8_t pannelCount;
+    uint8_t currentPannel;
+    bool tabChanged;
+    Pannel** pannels;
+} TabPannel;
+
+// Create dynamic amount tab pannel - const char text is "pannel1|Pannel2|etc..."
+TabPannel* tab_pannel_init(Arena* arena, UIController* uiController, WindowUI* window, const char* text,
+                           enum TabPannelPossition possition, int height, uint8_t elemPerPannelAmount, TTF_Font* font, uint8_t fontSize, SDL_Color color);
+// adding elems to tab . tab starting at 1 indexed
+void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8_t tab);
+//destroy handled by UIcontoller
 
 /* Pop-ups */
 typedef struct

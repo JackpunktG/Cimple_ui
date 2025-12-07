@@ -421,6 +421,7 @@ bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 
 void button_basic_click(BasicButton* bb);
 void popup_button_check(BasicButton* button, SDL_Event* e);
+void tab_pannel_mouseclick_check(TabPannel* tp, int mx, int my);
 
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e)
 {
@@ -456,6 +457,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case TEXTBOX_ELEM:
             {
                 TextBox* tb = (TextBox*)uiController->element[i];
+                if(tb->hidden) break;
                 if (mouse_in_box_check(mx, my, &tb->rect))
                 {
                     tb->focused = true;
@@ -479,6 +481,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case BUTTON_BASIC_ELEM:
             {
                 BasicButton* bb = (BasicButton*)uiController->element[i];
+                if(bb->hidden) break;
                 if (bb->cooldownTimer <= 0 && mouse_in_intbox_check(mx, my, &bb->rect))
                 {
                     bb->state = BUTTON_STATE_PRESSED;
@@ -487,8 +490,15 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                 }
                 break;
             }
+            case TABPANNEL_ELEM:
+            {
+                TabPannel* tp = (TabPannel*)uiController->element[i];
+                tab_pannel_mouseclick_check(tp, mx,my);
+                break;
+            }
             case NULL_ELEM:
                 assert(false);
+            default:
                 break;
             }
         }
@@ -504,14 +514,16 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case BUTTON_BASIC_ELEM:
             {
                 BasicButton* bb = (BasicButton*)uiController->element[i];
+                if(bb->hidden) break;
                 if (mouse_in_intbox_check(mx, my, &bb->rect) && bb->state == BUTTON_STATE_PRESSED)
                     bb->state = BUTTON_STATE_HOVERED;
                 else
                     bb->state = BUTTON_STATE_NORMAL;
                 break;
             }
-            case TEXTBOX_ELEM:
             case NULL_ELEM:
+                assert(false);
+            default:
                 break;
             }
         }
@@ -527,14 +539,16 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case BUTTON_BASIC_ELEM:
             {
                 BasicButton* bb = (BasicButton*)uiController->element[i];
+                if (bb->hidden) break;
                 if (mouse_in_intbox_check(mx, my, &bb->rect))
                     bb->state = BUTTON_STATE_HOVERED;
                 else
                     bb->state = BUTTON_STATE_NORMAL;
                 break;
             }
-            case TEXTBOX_ELEM:
             case NULL_ELEM:
+                assert(false);
+            default:
                 break;
             }
         }
@@ -550,12 +564,15 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
         case TEXTBOX_ELEM:
         {
             TextBox* tb = (TextBox*)uiController->elemFocus;
+            if (tb->hidden) break;
             assert(tb->focused);
             textbox_append_text(arena, sm, tb, e->text.text);
             break;
         }
         case NULL_ELEM:
             assert(false);
+            break;
+        default:
             break;
         }
     }
@@ -568,6 +585,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case TEXTBOX_ELEM:
             {
                 TextBox* tb = (TextBox*)uiController->elemFocus;
+                if (tb->hidden) break;
                 assert(tb->focused);
                 if (e->key.keysym.sym == SDLK_BACKSPACE)
                 {
@@ -587,14 +605,17 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             case NULL_ELEM:
                 assert(false);
                 break;
+            default:
+                break;
             }
         }
     }
 }
 
+void update_tab(TabPannel* tp);
+
 void ui_update(UIController* uiC, float deltaTime)
 {
-    //Button cooldown update
     for (int i  = 0; i < uiC->count; ++i)
     {
         switch(uiC->type[i])
@@ -602,7 +623,7 @@ void ui_update(UIController* uiC, float deltaTime)
         case BUTTON_BASIC_ELEM:
         {
             BasicButton* bb = (BasicButton*)uiC->element[i];
-            if (bb->cooldownTimer > 0.0f)
+            if (bb->cooldownTimer > 0.0f) //Button cooldown update
             {
                 bb->cooldownTimer -= deltaTime;
             }
@@ -618,6 +639,17 @@ void ui_update(UIController* uiC, float deltaTime)
                 continue;
             }
             break;
+        }
+        case TABPANNEL_ELEM:
+        {
+            TabPannel* tp = (TabPannel*)uiC->element[i];
+            if(tp->tabChanged)
+            {
+                update_tab(tp);
+                tp->tabChanged = false;
+            }
+            break;
+
         }
         case TEXTBOX_ELEM:
         case LABEL_ELEM:
@@ -647,7 +679,10 @@ void ui_update(UIController* uiC, float deltaTime)
             case NULL_ELEM:
                 assert(false);
                 break;
+            default:
+                break;
             }
+
         }
         if (uiC->secondCounter >= 0.5f)
             uiC->secondCounter = 0.0f;
@@ -657,7 +692,7 @@ void ui_update(UIController* uiC, float deltaTime)
         uiC->secondCounter = 0.0f;
     }
 }
-
+void render_tab_pannel_buttons(TabPannel* tp, SDL_Renderer* renderer);
 void ui_render(SDL_Renderer* renderer, UIController* uiC)
 {
     for(int i = 0; i < uiC->count; ++i)
@@ -690,6 +725,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
             SDL_RenderPresent(pn->window->renderer);
             break;
         }
+        case TABPANNEL_ELEM:
+        {
+            TabPannel* tp = (TabPannel*)uiC->element[i];
+            render_tab_pannel_buttons(tp, renderer);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
@@ -697,6 +738,7 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
     }
 }
 
+void destroy_tab_pannel_buttons(TabPannel* tp);
 void ui_controller_destroy(UIController* uiC)
 {
     for(int i = 0; i < uiC->count; ++i)
@@ -721,8 +763,16 @@ void ui_controller_destroy(UIController* uiC)
             free_texture(label->text);
             break;
         }
+        case TABPANNEL_ELEM:
+        {
+            TabPannel* tp = (TabPannel*)uiC->element[i];
+            destroy_tab_pannel_buttons(tp);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
+            break;
+        default:
             break;
         }
     }
@@ -741,6 +791,7 @@ Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, 
     l->rect.y = y;
     l->rect.w = width;
     l->rect.h = height;
+    l->hidden = false;
 
     if (fontsize != 0)
     {
@@ -771,6 +822,8 @@ Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, 
 
 void label_basic_render(SDL_Renderer* renderer, Label* label)
 {
+    if (label->hidden) return;
+
     if (label->text->mTexture != NULL)
     {
         SDL_FRect dst =
@@ -886,6 +939,7 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
     else if (textbox->string->count == 0)
         textbox->rect.h = textbox->rect.h > textbox->fontSize + 10 ? textbox->rect.h -= textbox->fontSize : textbox->fontSize + 10;
 
+
     SDL_Color color = COLOR[GRAY];
     SDL_FRect r = textbox->rect;
     if (textbox->focused)
@@ -942,6 +996,7 @@ BasicButton* button_basic_init(Arena* arena, UIController* uiController, int x, 
     bb->text = arena_alloc(arena, sizeof(Texture), NULL);
     bb->eventEmitter = event_emitter_init(arena, 1);
     bb->color = color;
+    bb->hidden = false;
     bb->rect.x = x;
     bb->rect.y = y;
     bb->rect.w = width;
@@ -999,6 +1054,8 @@ void button_basic_click(BasicButton* bb)
 
 void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
 {
+    if (button->hidden) return;
+
     SDL_Color color;
     switch (button->state)
     {
@@ -1010,6 +1067,12 @@ void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
         break;
     case BUTTON_STATE_PRESSED:
         color = button->color;
+        break;
+    case BUTTON_TAB_SELECTED:
+        color = COLOR[GRAY];
+        break;
+    case BUTTON_TAB:
+        color = COLOR[WHITE];
         break;
     default:
         color = COLOR[WHITE];
@@ -1041,6 +1104,215 @@ void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIContro
     ui_controller_destroy(uiController);
     arena_destroy(arena);
     destroy_SDL2_ui(windowUI);
+}
+
+
+/* Tab Pannel functions */
+
+
+void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8_t tab)
+{
+    assert(tabPannel->pannelCount >= tab && tab > 0);
+    Pannel* p = tabPannel->pannels[tab -1];
+
+    assert(p->elemCount < p->maxCount);
+
+    p->pannelElems[p->elemCount] = elem;
+    p->type[p->elemCount++] = type;
+
+    if (tab != 1)
+    {
+        switch (type)
+        {
+        case BUTTON_BASIC_ELEM:
+        {
+            BasicButton* bb = (BasicButton*)elem;
+            bb->hidden = true;
+            break;
+        }
+        case TEXTBOX_ELEM:
+        {
+            TextBox* tb = (TextBox*)elem;
+            tb->hidden = true;
+            break;
+        }
+        case LABEL_ELEM:
+        {
+            Label* l = (Label*)elem;
+            l->hidden = true;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+}
+
+Pannel* pannel_init(Arena* arena, uint8_t elemAmount)
+{
+    Pannel* p = arena_alloc(arena, sizeof(Pannel), NULL);
+    p->pannelElems = arena_alloc(arena, sizeof(void*) * elemAmount, NULL);
+    p->type = arena_alloc(arena, sizeof(UI_Element) * elemAmount, NULL);
+    p->maxCount = elemAmount;
+    p->elemCount = 0;
+
+    return p;
+}
+
+TabPannel* tab_pannel_init(Arena* arena, UIController* uiController, WindowUI* window, const char* text,
+                           enum TabPannelPossition possition, int height, uint8_t elemPerPannelAmount, TTF_Font* font, uint8_t fontSize, SDL_Color color)
+{
+
+    uint8_t count = 1;
+    int index = 0;
+    while(text[index] != '\0')
+    {
+        if (text[index++] == '|')
+            count++;
+    }
+    TabPannel* tp = arena_alloc(arena, sizeof(TabPannel), NULL);
+    tp->pannelCount = count;
+    tp->currentPannel = 0;
+    tp->tabChanged = true;
+    tp->pannels = arena_alloc(arena, sizeof(Pannel*) * count, NULL);
+    for (int i = 0; i < count; ++i)
+    {
+        tp->pannels[i] = pannel_init(arena, elemPerPannelAmount);
+    }
+
+    tp->tabButtons = arena_alloc(arena, sizeof(BasicButton*) * count, NULL);
+    int lastIndexDivide = 0;
+    for (int i = 0; i < count; ++i)
+    {
+        char buffer[128];
+        int j = lastIndexDivide;
+        int k = 0;
+        while (text[j] != '|' && j < index)
+        {
+            buffer[k++] = text[j++];
+        }
+        buffer[k] = '\0';
+        lastIndexDivide = ++j;
+
+        switch(possition)
+        {
+        case TABPANNEL_TOP:
+            tp->tabButtons[i] = button_basic_init(arena, NULL, 0 + (i *  window->width / count), 0, window->width / count, height, buffer, font, fontSize, color, window->renderer);
+            break;
+        case TABPANNEL_BUTTOM:
+            tp->tabButtons[i] = button_basic_init(arena, NULL, 0 + (i *  window->width / count), window->height - height, window->width / count, height, buffer, font, fontSize, color, window->renderer);
+            break;
+        }
+        tp->tabButtons[i]->state = i == 0 ? BUTTON_TAB_SELECTED : BUTTON_TAB;
+    }
+
+    ui_elem_add(uiController, tp, TABPANNEL_ELEM);
+
+    return tp;
+}
+
+void tab_pannel_mouseclick_check(TabPannel* tp, int mx, int my)
+{
+    int changePannel = -1;
+
+    for (int i = 0; i < tp->pannelCount; ++i)
+    {
+        if(mouse_in_intbox_check(mx, my, &tp->tabButtons[i]->rect) && tp->tabButtons[i]->state == BUTTON_TAB)
+        {
+            tp->tabButtons[i]->state = BUTTON_TAB_SELECTED;
+            tp->currentPannel = i;
+            changePannel = i;
+            tp->tabChanged = true;
+        }
+    }
+    if (changePannel == -1)
+        return;
+
+    for(int i = 0; i < tp->pannelCount; ++i)
+    {
+        if (i == tp->currentPannel)
+            tp->tabButtons[i]->state = BUTTON_TAB_SELECTED;
+        else
+            tp->tabButtons[i]->state = BUTTON_TAB;
+    }
+}
+
+void update_tab(TabPannel* tp)
+{
+    for(int i = 0; i < tp->pannelCount; ++i)
+    {
+        Pannel* p = tp->pannels[i];
+        if (i == tp->currentPannel)
+        {
+            for (int j = 0; j < p->elemCount; ++j)
+            {
+                switch (p->type[j])
+                {
+                case BUTTON_BASIC_ELEM:
+                {
+                    BasicButton* bb = (BasicButton*)p->pannelElems[j];
+                    bb->hidden = false;
+                    break;
+                }
+                case TEXTBOX_ELEM:
+                {
+                    TextBox* tb = (TextBox*)p->pannelElems[j];
+                    tb->hidden = false;
+                    break;
+                }
+                case LABEL_ELEM:
+                {
+                    Label* l = (Label*)p->pannelElems[j];
+                    l->hidden = false;
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int j = 0; j < p->elemCount; ++j)
+            {
+                switch (p->type[j])
+                {
+                case BUTTON_BASIC_ELEM:
+                {
+                    BasicButton* bb = (BasicButton*)p->pannelElems[j];
+                    bb->hidden = true;
+                    break;
+                }
+                case TEXTBOX_ELEM:
+                {
+                    TextBox* tb = (TextBox*)p->pannelElems[j];
+                    tb->hidden = true;
+                    break;
+                }
+                case LABEL_ELEM:
+                {
+                    Label* l = (Label*)p->pannelElems[j];
+                    l->hidden = true;
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void render_tab_pannel_buttons(TabPannel* tp, SDL_Renderer* renderer)
+{
+    for (int i = 0; i < tp->pannelCount; ++i)
+        button_basic_render(renderer, tp->tabButtons[i]);
+}
+
+void destroy_tab_pannel_buttons(TabPannel* tp)
+{
+    for (int i = 0; i < tp->pannelCount; ++i)
+        free_texture(tp->tabButtons[i]->text);
 }
 
 /* PopUp functions */
@@ -1088,21 +1360,18 @@ void notice_button_click(const Event* ev, void* userData)
 
 PopUpNotice* popup_notice_init(UIController* uiC, const char* notice, const char* button, TTF_Font* font, uint32_t width, uint32_t height,SDL_Color color)
 {
-    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
+    Arena* arena = arena_init(232, 8, false);
 
     PopUpNotice* popup = arena_alloc(arena, sizeof(PopUpNotice), NULL);
     popup->arena = arena;
     popup->window = create_arena_window_popup("PopUp", width, height, arena);
-    printf("size of popup %zu\n", popup->arena->current->used);
     popup->label = label_basic_init(arena, NULL, 0, 0, width, height / 2, notice, font, 0, color, popup->window->renderer);
-    printf("size of popup %zu\n", popup->arena->current->used);
     popup->button = button_basic_init(arena, NULL, width / 4, height / 2, width / 3, height / 3, button, font, 0, color, popup->window->renderer);
-    printf("size of popup %zu\n", popup->arena->current->used);
     popup->displaying = true;
 
     event_emitter_add_listener(arena, popup->button, BUTTON_BASIC_ELEM, notice_button_click, popup);
-    printf("size of popup %zu\n", popup->arena->current->used);
-    printf("size of allocated %zu\n", popup->arena->totalAllocated);
+    //printf("size of popup %zu\n", popup->arena->current->used);
+    //printf("size of allocated %zu\n", popup->arena->totalAllocated);
 
 
     ui_elem_add(uiC, popup, POPUP_NOTICE_ELEM);
