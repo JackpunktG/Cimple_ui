@@ -1,7 +1,5 @@
 #include "cimple_ui_export.h"
 #include "../lib/Cimple_ui/Cimple_ui.h"
-#include <stdlib.h>
-#include <string.h>
 
 
 /* Windows functions */
@@ -242,4 +240,59 @@ EXPORT bool CimpleUI_event_check(WindowUI_handle window, Arena_handle arena, Str
             change = true;
     }
     return change;
+}
+
+
+EXPORT TabPannel_handle CimpleUI_CreateTabPannel(
+    Arena_handle arena,
+    UIController_handle uiController,
+    WindowUI_handle window,
+    const char* tabNames,
+    int tabPosition,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    uint8_t fontSize,
+    int height,
+    ColorRGBA color, int elemPerTab)
+{
+    FontHolder* fontHolder = (FontHolder*)fh;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+
+    return (TabPannel_handle)tab_pannel_init(
+               (Arena*)arena,
+               (UIController*)uiController,
+               (WindowUI*)window,
+               tabNames,
+               (enum TabPannelPossition)tabPosition,
+               height,
+               elemPerTab,
+               fontHolder->fonts[fontIndex],
+               fontSize,
+               sdlColor
+           );
+}
+
+EXPORT void CimpleUI_AddElementToTabPannel(
+    TabPannel_handle tabPannel,
+    void* elem,
+    int elemType,
+    int tabIndex)
+{
+    add_elem_to_pannel(elem, elemType, (TabPannel*)tabPannel, tabIndex);
+}
+
+/* Popup Notice */
+EXPORT void CimpleUI_PopupNoticeInit(
+    UIController_handle uiController,
+    const char* noticeText,
+    const char* buttonText,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    int width,
+    int height,
+    ColorRGBA color)
+{
+    FontHolder* fontHolder = (FontHolder*)fh;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    popup_notice_init((UIController*)uiController, noticeText, buttonText, fontHolder->fonts[fontIndex], width, height, sdlColor);
 }

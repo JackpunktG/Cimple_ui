@@ -720,6 +720,7 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
         case POPUP_NOTICE_ELEM:
         {
             PopUpNotice* pn = (PopUpNotice*)uiC->element[i];
+            clear_screen_with_color(pn->window->renderer, COLOR[BLACK]);
             button_basic_render(pn->window->renderer, pn->button);
             label_basic_render(pn->window->renderer, pn->label);
             SDL_RenderPresent(pn->window->renderer);

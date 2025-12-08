@@ -265,7 +265,8 @@ typedef struct
 
 // Create dynamic amount tab pannel - const char text is "pannel1|Pannel2|etc..."
 TabPannel* tab_pannel_init(Arena* arena, UIController* uiController, WindowUI* window, const char* text,
-                           enum TabPannelPossition possition, int height, uint8_t elemPerPannelAmount, TTF_Font* font, uint8_t fontSize, SDL_Color color);
+                           enum TabPannelPossition possition, int height, uint8_t elemPerPannelAmount,
+                           TTF_Font* font, uint8_t fontSize, SDL_Color color);
 // adding elems to tab . tab starting at 1 indexed
 void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8_t tab);
 //destroy handled by UIcontoller

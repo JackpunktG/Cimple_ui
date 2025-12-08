@@ -26,6 +26,7 @@ typedef struct UIController_Opaque* UIController_handle;
 typedef struct TextBox_Opaque* TextBox_handle;
 typedef struct BasicButton_Opaque* BasicButton_handle;
 typedef struct Label_Opaque* Label_handle;
+typedef struct TabPannel_Opaque* TabPannel_handle;
 
 // Color struct
 typedef struct
@@ -101,6 +102,35 @@ EXPORT BasicButton_handle CimpleUI_CreateButton(
     ColorRGBA color);
 EXPORT void CimpleUI_ButtonAddClickListener(Arena_handle arena, BasicButton_handle button, ButtonClickCallback callback, void* userData);
 EXPORT int CimpleUI_ButtonGetState(BasicButton_handle button);
+
+//Tab Pannel
+EXPORT TabPannel_handle CimpleUI_CreateTabPannel(
+    Arena_handle arena,
+    UIController_handle uiController,
+    WindowUI_handle window,
+    const char* tabNames,
+    int tabPosition,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    uint8_t fontSize,
+    int height,
+    ColorRGBA color, int elemPerTab);
+
+void CimpleUI_AddElementToTabPannel(
+    TabPannel_handle tabPannel,
+    void* elem,
+    int elemType,
+    int tabIndex);
+
+EXPORT void CimpleUI_PopupNoticeInit(
+    UIController_handle uiController,
+    const char* noticeText,
+    const char* buttonText,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    int width,
+    int height,
+    ColorRGBA color);
 
 #ifdef __cplusplus
 }
