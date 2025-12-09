@@ -281,6 +281,54 @@ EXPORT void CimpleUI_AddElementToTabPannel(
     add_elem_to_pannel(elem, elemType, (TabPannel*)tabPannel, tabIndex);
 }
 
+
+/* Drop down menu */
+EXPORT DropdownMenu_handle CimpleUI_dropdown_menu_init(
+    Arena_handle arena, UIController_handle uiController,
+    WindowUI_handle window, uint8_t maxCount, const char* label,
+    FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize,
+    int x, int y, int w, int h, ColorRGBA color)
+{
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    WindowUI* win = (WindowUI*)window;
+    FontHolder* f = (FontHolder*)fh;
+    return (DropdownMenu_handle)dropdown_menu_init(
+               (Arena*)arena, (UIController*)uiController,
+               win->renderer, maxCount, label, f->fonts[fontIndex], fontSize,
+               x, y, w, h, sdlColor);
+}
+
+EXPORT void CimpleUI_dropdown_menu_populate(
+    Arena_handle arena, WindowUI_handle window, DropdownMenu_handle ddm,
+    const char* textString, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
+{
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    WindowUI* w = (WindowUI*)window;
+    FontHolder* font = (FontHolder*)fh;
+    dropdown_menu_populate((Arena*) arena, w->renderer, font->fonts[fontIndex], (DropdownMenu*)ddm,
+                           textString, fontSize, sdlColor);
+}
+static void dropdown_menu_callback_wrapper(const Event* ev, void* user_data)
+{
+    ButtonClickCallback callback = (ButtonClickCallback)user_data;
+    if (callback)
+    {
+        callback(ev->sourceObj);
+    }
+}
+
+EXPORT void CimpleUI_dropdown_menu_add_listener(
+    Arena_handle arena, DropdownMenu_handle ddm, ButtonClickCallback callback,
+    void* userData)
+{
+    dropdown_menu_add_listener((Arena*)arena, (DropdownMenu*)ddm, button_callback_wrapper, (void*)callback);
+}
+
+EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm)
+{
+    return dropdown_button_selected((DropdownMenu*)ddm);
+}
+
 /* Popup Notice */
 EXPORT void CimpleUI_PopupNoticeInit(
     UIController_handle uiController,

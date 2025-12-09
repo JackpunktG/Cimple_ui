@@ -93,7 +93,8 @@ typedef enum
     BUTTON_BASIC_ELEM,
     POPUP_NOTICE_ELEM,
     LABEL_ELEM,
-    TABPANNEL_ELEM
+    TABPANNEL_ELEM,
+    DROPDOWN_MENU_ELEM
 } UI_Element;
 
 typedef struct
@@ -232,6 +233,46 @@ void button_basic_render(SDL_Renderer* renderer, BasicButton* button);
 //destruction of texture handled in ui_controller_destroy
 int button_basic_add_listener(Arena* arena, BasicButton* bb, EventCallback cb, void* userData);
 
+
+/* Dropdown Menu */
+enum Dropdown_State
+{
+    DROPDOWN_NORMAL,
+    DROPDOWN_EXPANDED,
+    DROPDOWN_SELECTED
+};
+
+typedef struct
+{
+    SDL_Rect rect;
+    Texture* text;
+    enum ButtonState state;
+} DropdownButton;
+
+typedef struct
+{
+    DropdownButton** buttons;
+    SDL_Rect rect;
+    Texture* text;
+    enum Dropdown_State state;
+    uint8_t count;
+    uint8_t maxCount;
+    uint8_t selectedButton;
+    EventEmitter* eventEmitter; // on click on expanded menu
+    bool hidden;
+} DropdownMenu;
+
+DropdownMenu* dropdown_menu_init(Arena* arena, UIController* uiController, SDL_Renderer* renderer, uint8_t maxCount, const char* label,
+                                 TTF_Font* font, uint8_t fontSize, int x, int y, int w, int h, SDL_Color color);
+void dropdown_menu_populate(Arena* arena, SDL_Renderer* renderer, TTF_Font* font, DropdownMenu* menu,
+                            const char* textString, uint8_t fontSize, SDL_Color color);
+//gives the index of the selected button -1 on none selected
+int dropdown_button_selected(DropdownMenu* ddm);
+int dropdown_menu_add_listener(Arena* arena, DropdownMenu* ddm, EventCallback cb, void* userData);
+//update render und destory handled by ui_controller
+void destroy_dropdown_menu(DropdownMenu* ddm);
+
+
 /* Helper functions */
 //Completes the destruction of the SDL2 UI system including WindowUI, UIController, StringMemory, and Arena
 //destory fonts before calling this function
@@ -267,7 +308,7 @@ typedef struct
 TabPannel* tab_pannel_init(Arena* arena, UIController* uiController, WindowUI* window, const char* text,
                            enum TabPannelPossition possition, int height, uint8_t elemPerPannelAmount,
                            TTF_Font* font, uint8_t fontSize, SDL_Color color);
-// adding elems to tab . tab starting at 1 indexed
+// adding elems to tab - tab starting at 1 indexed
 void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8_t tab);
 //destroy handled by UIcontoller
 

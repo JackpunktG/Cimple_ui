@@ -56,10 +56,15 @@ int main(int argc, char* argv[])
     PopupNoticeData data = {UIController, fh->fonts[0]};
     event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, &data);
 
+
+    DropdownMenu* ddm = dropdown_menu_init(arena, UIController, windowUI.renderer, 16, "Here it comes :)", fh->fonts[0], 0, 500, 500, 200, 50, COLOR[BLACK]);
+    event_emitter_add_listener(arena, ddm, DROPDOWN_MENU_ELEM, on_button_click, &data);
+    dropdown_menu_populate(arena, windowUI.renderer, fh->fonts[0], ddm, "number one\nnumber two\n3333??", 0, COLOR[BLACK]);
+
     add_elem_to_pannel(textbox, TEXTBOX_ELEM, tp, 2);
     add_elem_to_pannel(button, BUTTON_BASIC_ELEM, tp, 2);
     add_elem_to_pannel(quitB, BUTTON_BASIC_ELEM, tp, 2);
-
+    add_elem_to_pannel(ddm, DROPDOWN_MENU_ELEM, tp, 3);
 
     Uint32 lastTime = SDL_GetTicks();
     while (!quit)

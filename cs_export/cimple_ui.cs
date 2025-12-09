@@ -66,7 +66,8 @@ namespace CimpleUI
         BUTTON_BASIC_ELEM,
         POPUP_NOTICE_ELEM,
         LABEL_ELEM,
-        TABPANNEL_ELEM
+        TABPANNEL_ELEM,
+        DROPDOWN_MENU_ELEM
     }
 
     /* ==== Native Imports - P/Invoke internal layer ==== */
@@ -190,6 +191,28 @@ namespace CimpleUI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_AddElementToTabPannel(
             IntPtr tabPannel, IntPtr elem, UI_Element uiElement, int tab);
+
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_dropdown_menu_init(
+            IntPtr arena, IntPtr uiController, IntPtr window, byte maxCount, [MarshalAs(UnmanagedType.LPStr)] string label,
+            IntPtr fh, byte fontIndex, byte fontSize,
+            int x, int y, int w, int h, ColorRGBA color);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_dropdown_menu_populate(
+            IntPtr arena, IntPtr window, IntPtr ddm,
+            [MarshalAs(UnmanagedType.LPStr)] string textString, IntPtr fh, byte fontIndex, byte fontSize, ColorRGBA color);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_dropdown_menu_add_listener(
+            IntPtr arena, IntPtr ddm, ButtonClickCallback callback,
+            IntPtr userData);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CimpleUI_dropdown_button_selected(IntPtr ddm);
+
+
 
         /*public static string textbox_gettext(intptr textbox)
         {
@@ -532,6 +555,76 @@ namespace CimpleUI
             Native.CimpleUI_AddElementToTabPannel(tabPannel, elem, uiElementType, tab);
         }
 
+    }
+
+    public class DropdownMenu
+    {
+        private IntPtr _handle;
+        private Native.ButtonClickCallback _nativeCallback;
+        private List<Action> _eventHandlers = new List<Action>();
+
+        //Adding the Selected event
+        public event Action? Selected
+        {
+            add
+            {
+                if (value != null)
+                    _eventHandlers.Add(value);
+            }
+            remove
+            {
+                if (value != null)
+                    _eventHandlers.Remove(value);
+            }
+        }
+
+        public DropdownMenu(UIController uiController, string label,
+            int x, int y, int width, int height, TabPannel? tp = null, int? tab = null, byte maxCount = 32,
+            byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
+        {
+            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+
+            if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
+                color = ColorRGBA.Black;
+
+            _handle = Native.CimpleUI_dropdown_menu_init(
+                uiController.Arena.Handle, uiController.Handle, uiController.Window.Handle,
+                maxCount, label ?? string.Empty,
+                uiController.FontHolder.Handle, fontIndex, fontSize,
+                x, y, width, height, color);
+
+            // Setup native callback
+            _nativeCallback = OnNativeSelected;
+            Native.CimpleUI_dropdown_menu_add_listener(uiController.Arena.Handle, _handle, _nativeCallback, IntPtr.Zero);
+
+            if (tp != null && tab != null)
+            {
+                TabPannel.add_elem(_handle, tp.Handle, UI_Element.DROPDOWN_MENU_ELEM, (int)tab);
+            }
+        }
+
+        internal IntPtr Handle => _handle;
+
+        public int SelectedIndex => Native.CimpleUI_dropdown_button_selected(_handle);
+
+        //Each element is seperated by '\n'
+        public void Populate(UIController uIController, string textString,
+            byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
+        {
+            if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
+                color = ColorRGBA.Black;
+
+            Native.CimpleUI_dropdown_menu_populate(uIController.Arena.Handle, uIController.Window.Handle, _handle,
+                textString ?? string.Empty, uIController.FontHolder.Handle, fontIndex, fontSize, color);
+        }
+
+        private void OnNativeSelected(IntPtr userData)
+        {
+            foreach (var handler in _eventHandlers)
+            {
+                handler?.Invoke();
+            }
+        }
     }
 
     public static class PopupNotice

@@ -27,6 +27,7 @@ typedef struct TextBox_Opaque* TextBox_handle;
 typedef struct BasicButton_Opaque* BasicButton_handle;
 typedef struct Label_Opaque* Label_handle;
 typedef struct TabPannel_Opaque* TabPannel_handle;
+typedef struct DropdownMenu_Opaque* DropdownMenu_handle;
 
 // Color struct
 typedef struct
@@ -116,7 +117,7 @@ EXPORT TabPannel_handle CimpleUI_CreateTabPannel(
     int height,
     ColorRGBA color, int elemPerTab);
 
-void CimpleUI_AddElementToTabPannel(
+EXPORT void CimpleUI_AddElementToTabPannel(
     TabPannel_handle tabPannel,
     void* elem,
     int elemType,
@@ -131,6 +132,24 @@ EXPORT void CimpleUI_PopupNoticeInit(
     int width,
     int height,
     ColorRGBA color);
+
+/* Drop down menu */
+EXPORT DropdownMenu_handle CimpleUI_dropdown_menu_init(
+    Arena_handle arena, UIController_handle uiController,
+    WindowUI_handle window, uint8_t maxCount, const char* label,
+    FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize,
+    int x, int y, int w, int h, ColorRGBA color);
+
+EXPORT void CimpleUI_dropdown_menu_populate(
+    Arena_handle arena, WindowUI_handle window, DropdownMenu_handle ddm,
+    const char* textString, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color);
+
+EXPORT void CimpleUI_dropdown_menu_add_listener(
+    Arena_handle arena, DropdownMenu_handle ddm, ButtonClickCallback callback,
+    void* userData);
+
+EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm);
+
 
 #ifdef __cplusplus
 }

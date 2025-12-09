@@ -422,6 +422,8 @@ bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 void button_basic_click(BasicButton* bb);
 void popup_button_check(BasicButton* button, SDL_Event* e);
 void tab_pannel_mouseclick_check(TabPannel* tp, int mx, int my);
+void dropdown_menu_mouseclick_check(DropdownMenu* ddm, int mx, int my);
+void dropdown_menu_mousemovement_check(DropdownMenu* ddm, int mx, int my);
 
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e)
 {
@@ -496,6 +498,13 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                 tab_pannel_mouseclick_check(tp, mx,my);
                 break;
             }
+            case DROPDOWN_MENU_ELEM:
+            {
+                DropdownMenu* ddm = (DropdownMenu*)uiController->element[i];
+                if(ddm->hidden) break;
+                dropdown_menu_mouseclick_check(ddm, mx, my);
+                break;
+            }
             case NULL_ELEM:
                 assert(false);
             default:
@@ -521,6 +530,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                     bb->state = BUTTON_STATE_NORMAL;
                 break;
             }
+
             case NULL_ELEM:
                 assert(false);
             default:
@@ -544,6 +554,13 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                     bb->state = BUTTON_STATE_HOVERED;
                 else
                     bb->state = BUTTON_STATE_NORMAL;
+                break;
+            }
+            case DROPDOWN_MENU_ELEM:
+            {
+                DropdownMenu* ddm = (DropdownMenu*)uiController->element[i];
+                if(ddm->hidden) break;
+                dropdown_menu_mousemovement_check(ddm, mx, my);
                 break;
             }
             case NULL_ELEM:
@@ -653,6 +670,7 @@ void ui_update(UIController* uiC, float deltaTime)
         }
         case TEXTBOX_ELEM:
         case LABEL_ELEM:
+        case DROPDOWN_MENU_ELEM:
         case NULL_ELEM:
             break;
         }
@@ -693,6 +711,7 @@ void ui_update(UIController* uiC, float deltaTime)
     }
 }
 void render_tab_pannel_buttons(TabPannel* tp, SDL_Renderer* renderer);
+void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer);
 void ui_render(SDL_Renderer* renderer, UIController* uiC)
 {
     for(int i = 0; i < uiC->count; ++i)
@@ -732,6 +751,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
             render_tab_pannel_buttons(tp, renderer);
             break;
         }
+        case DROPDOWN_MENU_ELEM:
+        {
+            DropdownMenu* ddm = (DropdownMenu*)uiC->element[i];
+            dropdown_menu_render(ddm, renderer);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
@@ -768,6 +793,12 @@ void ui_controller_destroy(UIController* uiC)
         {
             TabPannel* tp = (TabPannel*)uiC->element[i];
             destroy_tab_pannel_buttons(tp);
+            break;
+        }
+        case DROPDOWN_MENU_ELEM:
+        {
+            DropdownMenu* ddm = (DropdownMenu*)uiC->element[i];
+            destroy_dropdown_menu(ddm);
             break;
         }
         case NULL_ELEM:
@@ -861,11 +892,19 @@ int event_emitter_add_listener(Arena* arena, void* uiElement, UI_Element type, E
         return button_basic_add_listener(arena, bb, cb, userData);
         break;
     }
+    case DROPDOWN_MENU_ELEM:
+    {
+        DropdownMenu* ddm = (DropdownMenu*)uiElement;
+        return dropdown_menu_add_listener(arena, ddm, cb, userData);
+        break;
+    }
     case TEXTBOX_ELEM:
         break;
     case NULL_ELEM:
         assert(false);
-
+        break;
+    default:
+        break;
     }
     return 0;
 }
@@ -1143,6 +1182,12 @@ void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8
             l->hidden = true;
             break;
         }
+        case DROPDOWN_MENU_ELEM:
+        {
+            DropdownMenu* ddm = (DropdownMenu*)elem;
+            ddm->hidden = true;
+            break;
+        }
         default:
             break;
         }
@@ -1267,6 +1312,12 @@ void update_tab(TabPannel* tp)
                     l->hidden = false;
                     break;
                 }
+                case DROPDOWN_MENU_ELEM:
+                {
+                    DropdownMenu* ddm = (DropdownMenu*)p->pannelElems[j];
+                    ddm->hidden = false;
+                    break;
+                }
                 default:
                     break;
                 }
@@ -1296,6 +1347,12 @@ void update_tab(TabPannel* tp)
                     l->hidden = true;
                     break;
                 }
+                case DROPDOWN_MENU_ELEM:
+                {
+                    DropdownMenu* ddm = (DropdownMenu*)p->pannelElems[j];
+                    ddm->hidden = true;
+                    break;
+                }
                 default:
                     break;
                 }
@@ -1314,6 +1371,358 @@ void destroy_tab_pannel_buttons(TabPannel* tp)
 {
     for (int i = 0; i < tp->pannelCount; ++i)
         free_texture(tp->tabButtons[i]->text);
+}
+
+
+/* Drop down menu funtions */
+
+DropdownMenu* dropdown_menu_init(Arena* arena, UIController* uiController, SDL_Renderer* renderer, uint8_t maxCount, const char* label,
+                                 TTF_Font* font, uint8_t fontSize, int x, int y, int w, int h, SDL_Color color)
+{
+    DropdownMenu* ddm = arena_alloc(arena, sizeof(DropdownMenu), NULL);
+    memset(ddm, 0, sizeof(DropdownMenu));
+    ddm->eventEmitter = event_emitter_init(arena, 1);
+    ddm->rect.x = x;
+    ddm->rect.y = y;
+    ddm->rect.w = w;
+    ddm->rect.h = h;
+    ddm->state = DROPDOWN_NORMAL;
+    ddm->selectedButton = 0;
+    ddm->count = 0;
+    ddm->maxCount = maxCount;
+    ddm->hidden = false;
+
+    ddm->text = arena_alloc(arena, sizeof(Texture), NULL);
+    if (fontSize != 0)
+    {
+        TTF_SetFontSize(font, fontSize);
+        load_texture_from_rendered_text(ddm->text, w, label, font, color, renderer);
+    }
+    else
+    {
+        uint8_t i = DEFAULT_FONT_SIZE;
+        do
+        {
+            assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+            if (i != DEFAULT_FONT_SIZE)
+                free_texture(ddm->text);
+
+            TTF_SetFontSize(font, i--);
+            load_texture_from_rendered_text(ddm->text, w - 10, label, font, color, renderer);
+        }
+        while (ddm->text->height >= ddm->rect.h);
+    }
+
+    ddm->buttons = arena_alloc(arena, sizeof(DropdownButton*) * maxCount, NULL);
+
+    for(int i = 0; i < maxCount; ++i)
+        ddm->buttons[i] = NULL;
+
+    ui_elem_add(uiController, ddm, DROPDOWN_MENU_ELEM);
+
+    return ddm;
+}
+
+DropdownButton* dropdown_button_init(Arena* arena, SDL_Renderer* renderer, TTF_Font* font, uint8_t fontSize, SDL_Color color,
+                                     const char* text, int x, int y, int w, int h)
+{
+    DropdownButton* b = arena_alloc(arena, sizeof(DropdownButton), NULL);
+    memset(b, 0, sizeof(DropdownButton));
+    b->rect.x = x;
+    b->rect.y = y;
+    b->rect.w = w;
+    b->rect.h = h;
+    b->state = BUTTON_STATE_NORMAL;
+    b->text = arena_alloc(arena, sizeof(Texture), NULL);
+
+    if (fontSize != 0)
+    {
+        TTF_SetFontSize(font, fontSize);
+        load_texture_from_rendered_text(b->text, w, text, font, color, renderer);
+    }
+    else
+    {
+        uint8_t i = DEFAULT_FONT_SIZE;
+        do
+        {
+            assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+            if (i != DEFAULT_FONT_SIZE)
+                free_texture(b->text);
+
+            TTF_SetFontSize(font, i--);
+            load_texture_from_rendered_text(b->text, w - 10, text, font, color, renderer);
+        }
+        while (b->text->height >= b->rect.h);
+    }
+
+    return b;
+}
+
+void menu_button_reinit(DropdownButton* b, SDL_Renderer* renderer, TTF_Font* font, uint8_t fontSize, SDL_Color color,
+                        const char* text, int x, int y, int w, int h)
+{
+    b->rect.x = x;
+    b->rect.y = y;
+    b->rect.w = w;
+    b->rect.h = h;
+    b->state = BUTTON_STATE_NORMAL;
+
+    free_texture(b->text);
+    if (fontSize != 0)
+    {
+        TTF_SetFontSize(font, fontSize);
+        load_texture_from_rendered_text(b->text, w, text, font, color, renderer);
+    }
+    else
+    {
+        uint8_t i = DEFAULT_FONT_SIZE;
+        do
+        {
+            assert(i > 0 && "Font size could not be adjusted to fit button text");
+
+            if (i != DEFAULT_FONT_SIZE)
+                free_texture(b->text);
+
+            TTF_SetFontSize(font, i--);
+            load_texture_from_rendered_text(b->text, w - 10, text, font, color, renderer);
+        }
+        while (b->text->height >= b->rect.h);
+    }
+}
+
+void dropdown_menu_populate(Arena* arena, SDL_Renderer* renderer, TTF_Font* font, DropdownMenu* menu,
+                            const char* textString, uint8_t fontSize, SDL_Color color)
+{
+
+    int index = 0;
+    uint8_t count = 1;
+    while(textString[index] != '\0')
+    {
+        if (textString[index++] == '\n')
+            count++;
+    }
+    assert(count < menu->maxCount);
+
+    SDL_Rect r = menu->rect;
+    int k = 0;
+
+    for(int i = 0; i < count; ++i)
+    {
+        char buffer[256];
+        int j = 0;
+        while(textString[k] != '\n' && k < index)
+            buffer[j++] = textString[k++];
+        buffer[j] = '\0';
+        ++k;
+
+        if (menu->buttons[i] == NULL)
+            menu->buttons[i] = dropdown_button_init(arena, renderer, font, fontSize, color, buffer, r.x, r.y + ((i +1) * r.h), r.w, r.h);
+        else
+            menu_button_reinit(menu->buttons[i], renderer, font, fontSize, color, buffer, r.x, r.y + ((i+1) * r.h), r.w, r.h);
+
+        menu->count++;
+    }
+}
+
+int dropdown_menu_add_listener(Arena* arena, DropdownMenu* ddm, EventCallback cb, void* userData)
+{
+    assert(ddm->eventEmitter->count < ddm->eventEmitter->maxCount);
+
+    EventNode* en = arena_alloc(arena, sizeof(EventNode), NULL);
+    en->cb = cb;
+    en->userData = userData;
+    en->type = EVENT_TYPE_CLICK;
+
+    ddm->eventEmitter->listeners[ddm->eventEmitter->count++] = en;
+    return 1;
+}
+void dropdown_menu_select(DropdownMenu* ddm)
+{
+    if (!ddm) return;
+    Event ev;
+    ev.type = EVENT_TYPE_CLICK;
+    ev.sourceObj = ddm;
+    event_emitter_emit(ddm->eventEmitter, &ev);
+}
+
+void dropdown_menu_mouseclick_check(DropdownMenu* ddm, int mx, int my)
+{
+    switch (ddm->state)
+    {
+    case DROPDOWN_NORMAL:
+        if(mouse_in_intbox_check(mx, my, &ddm->rect))
+            ddm->state = DROPDOWN_EXPANDED;
+        break;
+    case DROPDOWN_EXPANDED:
+        for(int i = 0; i < ddm->count; ++i)
+        {
+            DropdownButton* d = ddm->buttons[i];
+            if(mouse_in_intbox_check(mx, my, &d->rect))
+            {
+                d->state = BUTTON_STATE_PRESSED;
+                ddm->selectedButton = i;
+                ddm->state = DROPDOWN_SELECTED;
+                dropdown_menu_select(ddm);
+                return;
+            }
+        }
+        ddm->state = DROPDOWN_NORMAL;
+        break;
+    case DROPDOWN_SELECTED:
+        if(mouse_in_intbox_check(mx, my, &ddm->rect))
+            ddm->state = DROPDOWN_EXPANDED;
+        break;
+    }
+}
+
+void dropdown_menu_mousemovement_check(DropdownMenu* ddm, int mx, int my)
+{
+    switch (ddm->state)
+    {
+    case DROPDOWN_EXPANDED:
+        for(int i = 0; i < ddm->count; ++i)
+        {
+            DropdownButton* d = ddm->buttons[i];
+            if(mouse_in_intbox_check(mx, my, &d->rect))
+                d->state = BUTTON_STATE_HOVERED;
+            else
+                d->state = BUTTON_STATE_NORMAL;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer)
+{
+    if (ddm->hidden) return;
+
+    switch(ddm->state)
+    {
+    case DROPDOWN_NORMAL:
+    {
+        SDL_Color color = COLOR[WHITE];
+        SDL_Rect r = ddm->rect;
+
+        //Button draw
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawRect(renderer, &r);
+
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
+        SDL_RenderFillRect(renderer, &r);
+
+        //Text render
+        SDL_FRect dst =
+        {
+            roundf(r.x + ((float)r.w / 2) - (float)ddm->text->width / 2),
+            roundf(r.y + ((float)r.h / 2) - (float)ddm->text->height / 2),
+            (float)ddm->text->width,
+            (float)ddm->text->height
+        };
+        SDL_RenderCopyF(renderer, ddm->text->mTexture, NULL, &dst);
+        break;
+    }
+    case DROPDOWN_EXPANDED:
+    {
+        for (int i = 0; i < ddm->count; ++i)
+        {
+            DropdownButton* d = ddm->buttons[i];
+            SDL_Color color;
+            if (d->state == BUTTON_STATE_HOVERED)
+                color = COLOR[LIGHT_GRAY];
+            else
+                color = COLOR[WHITE];
+
+            SDL_Rect r = d->rect;
+
+            //Button draw
+            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+            SDL_RenderDrawRect(renderer, &r);
+
+            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
+            SDL_RenderFillRect(renderer, &r);
+
+            //Text render
+            SDL_FRect dst =
+            {
+                roundf(r.x + ((float)r.w / 2) - (float)d->text->width / 2),
+                roundf(r.y + ((float)r.h / 2) - (float)d->text->height / 2),
+                (float)d->text->width,
+                (float)d->text->height
+            };
+            SDL_RenderCopyF(renderer, d->text->mTexture, NULL, &dst);
+
+        }
+        //draw top of menu
+        SDL_Color color = COLOR[WHITE];
+        SDL_Rect r = ddm->rect;
+
+        //Button draw
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawRect(renderer, &r);
+
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
+        SDL_RenderFillRect(renderer, &r);
+
+        //Text render
+        SDL_FRect dst =
+        {
+            roundf(r.x + ((float)r.w / 2) - (float)ddm->text->width / 2),
+            roundf(r.y + ((float)r.h / 2) - (float)ddm->text->height / 2),
+            (float)ddm->text->width,
+            (float)ddm->text->height
+        };
+        SDL_RenderCopyF(renderer, ddm->text->mTexture, NULL, &dst);
+        break;
+    }
+    case DROPDOWN_SELECTED:
+    {
+        SDL_Color color = COLOR[WHITE];
+        SDL_Rect r = ddm->rect;
+
+        //Button draw
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawRect(renderer, &r);
+
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
+        SDL_RenderFillRect(renderer, &r);
+
+        //Text render
+        SDL_FRect dst =
+        {
+            roundf(r.x + ((float)r.w / 2) - (float)ddm->buttons[ddm->selectedButton]->text->width / 2),
+            roundf(r.y + ((float)r.h / 2) - (float)ddm->buttons[ddm->selectedButton]->text->height / 2),
+            (float)ddm->buttons[ddm->selectedButton]->text->width,
+            (float)ddm->buttons[ddm->selectedButton]->text->height
+        };
+        SDL_RenderCopyF(renderer, ddm->buttons[ddm->selectedButton]->text->mTexture, NULL, &dst);
+
+        break;
+    }
+    }
+}
+
+
+
+int dropdown_button_selected(DropdownMenu* ddm)
+{
+    if (ddm->state != DROPDOWN_SELECTED)
+        return -1;
+
+    return ddm->selectedButton;
+}
+
+void destroy_dropdown_menu(DropdownMenu* ddm)
+{
+    free_texture(ddm->text);
+    for (int i = 0; i < ddm->maxCount; ++i)
+    {
+        if (ddm->buttons[i] != NULL)
+            free_texture(ddm->buttons[i]->text);
+    }
 }
 
 /* PopUp functions */
@@ -1351,6 +1760,7 @@ void popup_button_check(BasicButton* bb, SDL_Event* e)
         }
     }
 }
+
 
 void notice_button_click(const Event* ev, void* userData)
 {
