@@ -422,7 +422,7 @@ bool mouse_in_box_check(int mx, int my, SDL_FRect* rect)
 void button_basic_click(BasicButton* bb);
 void popup_button_check(BasicButton* button, SDL_Event* e);
 void tab_pannel_mouseclick_check(TabPannel* tp, int mx, int my);
-void dropdown_menu_mouseclick_check(DropdownMenu* ddm, int mx, int my);
+void dropdown_menu_mouseclick_check(UIController* uiC, DropdownMenu* ddm, int mx, int my);
 void dropdown_menu_mousemovement_check(DropdownMenu* ddm, int mx, int my);
 
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e)
@@ -452,63 +452,76 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
     {
         int mx = e->button.x;
         int my = e->button.y;
-        for(int i = 0; i < uiController->count; ++i)
+        if(uiController->focusedType == DROPDOWN_MENU_ELEM)
         {
-            switch(uiController->type[i])
+            DropdownMenu* ddm = (DropdownMenu*)uiController->elemFocus;
+            if(ddm->hidden)
             {
-            case TEXTBOX_ELEM:
+                uiController->elemFocus = NULL;
+                uiController->focusedType = NULL_ELEM;
+            }
+            dropdown_menu_mouseclick_check(uiController, ddm, mx, my);
+        }
+        else
+        {
+            for(int i = 0; i < uiController->count; ++i)
             {
-                TextBox* tb = (TextBox*)uiController->element[i];
-                if(tb->hidden) break;
-                if (mouse_in_box_check(mx, my, &tb->rect))
+                switch(uiController->type[i])
                 {
-                    tb->focused = true;
-                    tb->caret = true;
-                    uiController->elemFocus = tb;
-                    uiController->focusedType = TEXTBOX_ELEM;
-                    SDL_StartTextInput();
-                    SDL_Rect input = {(int)tb->rect.x, (int)tb->rect.y, (int)tb->rect.w, (int)tb->rect.h};
-                    SDL_SetTextInputRect(&input);
-                }
-                else if (tb->focused)
+                case TEXTBOX_ELEM:
                 {
-                    tb->focused = false; //if mouse click happens outside the box change it to false
-                    tb->caret = false;
-                    uiController->elemFocus = NULL;
-                    uiController->focusedType = NULL_ELEM;
-                    SDL_StopTextInput();
+                    TextBox* tb = (TextBox*)uiController->element[i];
+                    if(tb->hidden) break;
+                    if (mouse_in_box_check(mx, my, &tb->rect))
+                    {
+                        tb->focused = true;
+                        tb->caret = true;
+                        uiController->elemFocus = tb;
+                        uiController->focusedType = TEXTBOX_ELEM;
+                        SDL_StartTextInput();
+                        SDL_Rect input = {(int)tb->rect.x, (int)tb->rect.y, (int)tb->rect.w, (int)tb->rect.h};
+                        SDL_SetTextInputRect(&input);
+                    }
+                    else if (tb->focused)
+                    {
+                        tb->focused = false; //if mouse click happens outside the box change it to false
+                        tb->caret = false;
+                        uiController->elemFocus = NULL;
+                        uiController->focusedType = NULL_ELEM;
+                        SDL_StopTextInput();
+                    }
+                    break;
                 }
-                break;
-            }
-            case BUTTON_BASIC_ELEM:
-            {
-                BasicButton* bb = (BasicButton*)uiController->element[i];
-                if(bb->hidden) break;
-                if (bb->cooldownTimer <= 0 && mouse_in_intbox_check(mx, my, &bb->rect))
+                case BUTTON_BASIC_ELEM:
                 {
-                    bb->state = BUTTON_STATE_PRESSED;
-                    button_basic_click(bb);
-                    bb->cooldownTimer = 0.5f; //500 ms cooldown
+                    BasicButton* bb = (BasicButton*)uiController->element[i];
+                    if(bb->hidden) break;
+                    if (bb->cooldownTimer <= 0 && mouse_in_intbox_check(mx, my, &bb->rect))
+                    {
+                        bb->state = BUTTON_STATE_PRESSED;
+                        button_basic_click(bb);
+                        bb->cooldownTimer = 0.5f; //500 ms cooldown
+                    }
+                    break;
                 }
-                break;
-            }
-            case TABPANNEL_ELEM:
-            {
-                TabPannel* tp = (TabPannel*)uiController->element[i];
-                tab_pannel_mouseclick_check(tp, mx,my);
-                break;
-            }
-            case DROPDOWN_MENU_ELEM:
-            {
-                DropdownMenu* ddm = (DropdownMenu*)uiController->element[i];
-                if(ddm->hidden) break;
-                dropdown_menu_mouseclick_check(ddm, mx, my);
-                break;
-            }
-            case NULL_ELEM:
-                assert(false);
-            default:
-                break;
+                case TABPANNEL_ELEM:
+                {
+                    TabPannel* tp = (TabPannel*)uiController->element[i];
+                    tab_pannel_mouseclick_check(tp, mx,my);
+                    break;
+                }
+                case DROPDOWN_MENU_ELEM:
+                {
+                    DropdownMenu* ddm = (DropdownMenu*)uiController->element[i];
+                    if(ddm->hidden) break;
+                    dropdown_menu_mouseclick_check(uiController, ddm, mx, my);
+                    break;
+                }
+                case NULL_ELEM:
+                    assert(false);
+                default:
+                    break;
+                }
             }
         }
     }
@@ -548,6 +561,9 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
             {
             case BUTTON_BASIC_ELEM:
             {
+                if (uiController->focusedType == DROPDOWN_MENU_ELEM)
+                    break;
+
                 BasicButton* bb = (BasicButton*)uiController->element[i];
                 if (bb->hidden) break;
                 if (mouse_in_intbox_check(mx, my, &bb->rect))
@@ -572,6 +588,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
     }
 
     if (uiController->elemFocus == NULL) return;
+    if (uiController->focusedType != TEXTBOX_ELEM) return;
 
     if (e->type == SDL_TEXTINPUT)
     {
@@ -1486,7 +1503,7 @@ void menu_button_reinit(DropdownButton* b, SDL_Renderer* renderer, TTF_Font* fon
                 free_texture(b->text);
 
             TTF_SetFontSize(font, i--);
-            load_texture_from_rendered_text(b->text, w - 10, text, font, color, renderer);
+            load_texture_from_rendered_text(b->text, w - 20, text, font, color, renderer);
         }
         while (b->text->height >= b->rect.h);
     }
@@ -1505,6 +1522,7 @@ void dropdown_menu_populate(Arena* arena, SDL_Renderer* renderer, TTF_Font* font
     }
     assert(count < menu->maxCount);
 
+    menu->count = 0;
     SDL_Rect r = menu->rect;
     int k = 0;
 
@@ -1518,9 +1536,9 @@ void dropdown_menu_populate(Arena* arena, SDL_Renderer* renderer, TTF_Font* font
         ++k;
 
         if (menu->buttons[i] == NULL)
-            menu->buttons[i] = dropdown_button_init(arena, renderer, font, fontSize, color, buffer, r.x, r.y + ((i +1) * r.h), r.w, r.h);
+            menu->buttons[i] = dropdown_button_init(arena, renderer, font, fontSize, color, buffer, r.x, r.y + ((i +1) * r.h), r.w -20, r.h);
         else
-            menu_button_reinit(menu->buttons[i], renderer, font, fontSize, color, buffer, r.x, r.y + ((i+1) * r.h), r.w, r.h);
+            menu_button_reinit(menu->buttons[i], renderer, font, fontSize, color, buffer, r.x, r.y + ((i+1) * r.h), r.w -20, r.h);
 
         menu->count++;
     }
@@ -1547,13 +1565,17 @@ void dropdown_menu_select(DropdownMenu* ddm)
     event_emitter_emit(ddm->eventEmitter, &ev);
 }
 
-void dropdown_menu_mouseclick_check(DropdownMenu* ddm, int mx, int my)
+void dropdown_menu_mouseclick_check(UIController* uiC, DropdownMenu* ddm, int mx, int my)
 {
     switch (ddm->state)
     {
     case DROPDOWN_NORMAL:
         if(mouse_in_intbox_check(mx, my, &ddm->rect))
+        {
             ddm->state = DROPDOWN_EXPANDED;
+            uiC->elemFocus = ddm;
+            uiC->focusedType = DROPDOWN_MENU_ELEM;
+        }
         break;
     case DROPDOWN_EXPANDED:
         for(int i = 0; i < ddm->count; ++i)
@@ -1565,16 +1587,37 @@ void dropdown_menu_mouseclick_check(DropdownMenu* ddm, int mx, int my)
                 ddm->selectedButton = i;
                 ddm->state = DROPDOWN_SELECTED;
                 dropdown_menu_select(ddm);
+
+                uiC->elemFocus = NULL;
+                uiC->focusedType = NULL_ELEM;
                 return;
             }
         }
         ddm->state = DROPDOWN_NORMAL;
+        uiC->elemFocus = NULL;
+        uiC->focusedType = NULL_ELEM;
         break;
     case DROPDOWN_SELECTED:
         if(mouse_in_intbox_check(mx, my, &ddm->rect))
+        {
             ddm->state = DROPDOWN_EXPANDED;
+            uiC->elemFocus = ddm;
+            uiC->focusedType = DROPDOWN_MENU_ELEM;
+        }
         break;
     }
+}
+
+void select_dropdown_menu_button(DropdownMenu* ddm, uint8_t buttonIndex)
+{
+    assert(buttonIndex <= ddm->count);
+    ddm->selectedButton = buttonIndex;
+    ddm->state = DROPDOWN_SELECTED;
+}
+
+void reset_dropdown_menu(DropdownMenu* ddm)
+{
+    ddm->state = DROPDOWN_NORMAL;
 }
 
 void dropdown_menu_mousemovement_check(DropdownMenu* ddm, int mx, int my)
@@ -1596,6 +1639,7 @@ void dropdown_menu_mousemovement_check(DropdownMenu* ddm, int mx, int my)
     }
 }
 
+void draw_filled_triangle(SDL_Renderer* renderer, SDL_Point p1, SDL_Point p2, SDL_Point p3, SDL_Color colour);
 void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer)
 {
     if (ddm->hidden) return;
@@ -1614,10 +1658,16 @@ void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer)
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
         SDL_RenderFillRect(renderer, &r);
 
+        //triangle
+        SDL_Point v0 = {r.x + r.w - 18, r.y + (r.h / 2) -6};
+        SDL_Point v1 = {r.x + r.w - 5, r.y + (r.h / 2) -6};
+        SDL_Point v2 = {r.x + r.w -12, r.y + (r.h / 2) +6};
+        draw_filled_triangle(renderer, v0, v1, v2, COLOR[TEAL]);
+
         //Text render
         SDL_FRect dst =
         {
-            roundf(r.x + ((float)r.w / 2) - (float)ddm->text->width / 2),
+            roundf(r.x + (((float)r.w -20) / 2) - (float)ddm->text->width / 2),
             roundf(r.y + ((float)r.h / 2) - (float)ddm->text->height / 2),
             (float)ddm->text->width,
             (float)ddm->text->height
@@ -1637,13 +1687,14 @@ void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer)
                 color = COLOR[WHITE];
 
             SDL_Rect r = d->rect;
+            SDL_Color boarder = COLOR[DARK_GRAY];
 
             //Button draw
             SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-            SDL_RenderDrawRect(renderer, &r);
-
-            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
             SDL_RenderFillRect(renderer, &r);
+
+            SDL_SetRenderDrawColor(renderer, boarder.r, boarder.g, boarder.b, boarder.a);
+            SDL_RenderDrawRect(renderer, &r);
 
             //Text render
             SDL_FRect dst =
@@ -1690,10 +1741,16 @@ void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer)
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a -20);
         SDL_RenderFillRect(renderer, &r);
 
+        //triangle
+        SDL_Point v0 = {r.x + r.w - 18, r.y + (r.h / 2) -6};
+        SDL_Point v1 = {r.x + r.w - 5, r.y + (r.h / 2) -6};
+        SDL_Point v2 = {r.x + r.w -12, r.y + (r.h / 2) +6};
+        draw_filled_triangle(renderer, v0, v1, v2, COLOR[TEAL]);
+
         //Text render
         SDL_FRect dst =
         {
-            roundf(r.x + ((float)r.w / 2) - (float)ddm->buttons[ddm->selectedButton]->text->width / 2),
+            roundf(r.x + (((float)r.w -20) / 2) - (float)ddm->buttons[ddm->selectedButton]->text->width / 2),
             roundf(r.y + ((float)r.h / 2) - (float)ddm->buttons[ddm->selectedButton]->text->height / 2),
             (float)ddm->buttons[ddm->selectedButton]->text->width,
             (float)ddm->buttons[ddm->selectedButton]->text->height
@@ -1797,4 +1854,133 @@ void popup_notice_destroy(PopUpNotice* popup)
     destroy_popup_window(popup->window);
 
     arena_destroy(popup->arena);
+}
+
+
+/* Geometric Shapes Rendering */
+
+/* Draws a triangle where the bottom is one vertex (v2) and top edge is v0-v1 (v0.y == v1.y) */
+static void draw_flat_top_triangle(SDL_Renderer* renderer, SDL_Point v0, SDL_Point v1, SDL_Point v2)
+{
+    double invslope1 = (double)(v2.x - v0.x) / (v2.y - v0.y);
+    double invslope2 = (double)(v2.x - v1.x) / (v2.y - v1.y);
+
+    double curx1 = v2.x;
+    double curx2 = v2.x;
+
+    for (int y = v2.y; y >= v0.y; --y)
+    {
+        int x_start = (int)ceil(fmin(curx1, curx2));
+        int x_end   = (int)floor(fmax(curx1, curx2));
+        if (x_end >= x_start)
+            SDL_RenderDrawLine(renderer, x_start, y, x_end, y);
+
+        curx1 -= invslope1;
+        curx2 -= invslope2;
+    }
+}
+
+/* Public function: fills a triangle specified by three points */
+void draw_outlined_triangle(SDL_Renderer* renderer, SDL_Point p1, SDL_Point p2, SDL_Point p3, SDL_Color colour)
+{
+    SDL_SetRenderDrawColor(renderer, colour.r, colour.g, colour.b, colour.a);
+    SDL_RenderDrawLine(renderer, p1.x, p1.y, p2.x, p2.y);
+    SDL_RenderDrawLine(renderer, p2.x, p2.y, p3.x, p3.y);
+    SDL_RenderDrawLine(renderer, p3.x, p3.y, p1.x, p1.y);
+}
+
+
+/* Helper: swap two SDL_Points */
+static void swap_point(SDL_Point* a, SDL_Point* b)
+{
+    SDL_Point tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+/* Draws a triangle where the top is one vertex (v0) and bottom edge is v1-v2 (v1.y == v2.y) */
+static void draw_flat_bottom_triangle(SDL_Renderer* renderer, SDL_Point v0, SDL_Point v1, SDL_Point v2)
+{
+    double invslope1 = (double)(v1.x - v0.x) / (v1.y - v0.y);
+    double invslope2 = (double)(v2.x - v0.x) / (v2.y - v0.y);
+
+    double curx1 = v0.x;
+    double curx2 = v0.x;
+
+    for (int y = v0.y; y <= v1.y; ++y)
+    {
+        int x_start = (int)ceil(fmin(curx1, curx2));
+        int x_end   = (int)floor(fmax(curx1, curx2));
+        if (x_end >= x_start)
+            SDL_RenderDrawLine(renderer, x_start, y, x_end, y);
+
+        curx1 += invslope1;
+        curx2 += invslope2;
+    }
+}
+
+/* Public function: fills a triangle specified by three points */
+void draw_filled_triangle(SDL_Renderer* renderer, SDL_Point p1, SDL_Point p2, SDL_Point p3, SDL_Color colour)
+{
+    if (!renderer) return;
+
+    /* Set draw color */
+    SDL_SetRenderDrawColor(renderer, colour.r, colour.g, colour.b, colour.a);
+
+    /* Sort points by y ascending: p1.y <= p2.y <= p3.y */
+    SDL_Point v0 = p1, v1 = p2, v2 = p3;
+    if (v0.y > v1.y) swap_point(&v0, &v1);
+    if (v1.y > v2.y) swap_point(&v1, &v2);
+    if (v0.y > v1.y) swap_point(&v0, &v1);
+
+    /* Handle degenerate triangles (line or point) */
+    if (v0.y == v2.y)
+    {
+        /* All on same horizontal line: draw a horizontal line between min x and max x */
+        int minx = v0.x, maxx = v0.x;
+        minx = SDL_min(minx, v1.x);
+        maxx = SDL_max(maxx, v1.x);
+        minx = SDL_min(minx, v2.x);
+        maxx = SDL_max(maxx, v2.x);
+        SDL_RenderDrawLine(renderer, minx, v0.y, maxx, v0.y);
+        return;
+    }
+
+    /* If middle vertex shares same y as top -> flat-top triangle */
+    if (v0.y == v1.y)
+    {
+        /* Ensure v0 is left and v1 is right on the top edge */
+        if (v0.x > v1.x) swap_point(&v0, &v1);
+        draw_flat_top_triangle(renderer, v0, v1, v2);
+    }
+    else if (v1.y == v2.y) /* flat-bottom triangle */
+    {
+        /* Ensure v1 is left and v2 is right on the bottom edge */
+        if (v1.x > v2.x) swap_point(&v1, &v2);
+        draw_flat_bottom_triangle(renderer, v0, v1, v2);
+    }
+    else
+    {
+        /* General triangle -- split into a flat-bottom and flat-top at y = v1.y */
+        double alpha = (double)(v1.y - v0.y) / (double)(v2.y - v0.y);
+        double split_x = v0.x + alpha * (v2.x - v0.x);
+        SDL_Point vi = { (int)round(split_x), v1.y };
+
+        /* Determine which side vi should be on (left or right) by comparing x */
+        if (vi.x <= v1.x)
+        {
+            /* vi is left of v1 -> lower triangle v0,vi,v1 is flat-bottom; upper triangle vi,v1,v2 is flat-top */
+            draw_flat_bottom_triangle(renderer, v0, vi, v1);
+            /* For the top part we need vi,v1,v2 but top edge must be in order left/right */
+            if (vi.x > v1.x) swap_point(&vi, &v1);
+            draw_flat_top_triangle(renderer, vi, v1, v2);
+        }
+        else
+        {
+            /* vi is right of v1 */
+            draw_flat_bottom_triangle(renderer, v0, v1, vi);
+            if (v1.x > vi.x) swap_point(&v1, &vi);
+            draw_flat_top_triangle(renderer, v1, vi, v2);
+        }
+    }
 }

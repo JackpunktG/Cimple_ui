@@ -268,6 +268,10 @@ void dropdown_menu_populate(Arena* arena, SDL_Renderer* renderer, TTF_Font* font
                             const char* textString, uint8_t fontSize, SDL_Color color);
 //gives the index of the selected button -1 on none selected
 int dropdown_button_selected(DropdownMenu* ddm);
+//resets to normal state
+void reset_dropdown_menu(DropdownMenu* ddm);
+//selects button at index
+void select_dropdown_menu_button(DropdownMenu* ddm, uint8_t buttonIndex);
 int dropdown_menu_add_listener(Arena* arena, DropdownMenu* ddm, EventCallback cb, void* userData);
 //update render und destory handled by ui_controller
 void destroy_dropdown_menu(DropdownMenu* ddm);

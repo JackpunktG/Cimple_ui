@@ -328,6 +328,14 @@ EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm)
 {
     return dropdown_button_selected((DropdownMenu*)ddm);
 }
+EXPORT void CimpleUI_reset_dropdown_menu(DropdownMenu_handle ddm)
+{
+    reset_dropdown_menu((DropdownMenu*)ddm);
+}
+EXPORT void CimpleUI_select_dropdown_menu_button(DropdownMenu_handle ddm, uint8_t buttonIndex)
+{
+    select_dropdown_menu_button((DropdownMenu*)ddm, buttonIndex);
+}
 
 /* Popup Notice */
 EXPORT void CimpleUI_PopupNoticeInit(

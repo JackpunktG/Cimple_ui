@@ -149,6 +149,8 @@ EXPORT void CimpleUI_dropdown_menu_add_listener(
     void* userData);
 
 EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm);
+EXPORT void CimpleUI_select_dropdown_menu_button(DropdownMenu_handle ddm, uint8_t buttonIndex);
+EXPORT void CimpleUI_reset_dropdown_menu(DropdownMenu_handle ddm);
 
 
 #ifdef __cplusplus

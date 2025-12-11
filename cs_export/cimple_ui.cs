@@ -212,7 +212,11 @@ namespace CimpleUI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CimpleUI_dropdown_button_selected(IntPtr ddm);
 
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_reset_dropdown_menu(IntPtr ddm);
 
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_select_dropdown_menu_button(IntPtr ddm, byte buttonIndex);
 
         /*public static string textbox_gettext(intptr textbox)
         {
@@ -607,6 +611,10 @@ namespace CimpleUI
 
         public int SelectedIndex => Native.CimpleUI_dropdown_button_selected(_handle);
 
+        public void Reset() => Native.CimpleUI_reset_dropdown_menu(_handle);
+
+        public void Select(byte index) => Native.CimpleUI_select_dropdown_menu_button(_handle, index);
+
         //Each element is seperated by '\n'
         public void Populate(UIController uIController, string textString,
             byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
@@ -614,8 +622,9 @@ namespace CimpleUI
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.Black;
 
-            Native.CimpleUI_dropdown_menu_populate(uIController.Arena.Handle, uIController.Window.Handle, _handle,
-                textString ?? string.Empty, uIController.FontHolder.Handle, fontIndex, fontSize, color);
+            if (!string.IsNullOrWhiteSpace(textString))
+                Native.CimpleUI_dropdown_menu_populate(uIController.Arena.Handle, uIController.Window.Handle, _handle,
+                    textString, uIController.FontHolder.Handle, fontIndex, fontSize, color);
         }
 
         private void OnNativeSelected(IntPtr userData)
