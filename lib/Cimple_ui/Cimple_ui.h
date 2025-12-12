@@ -52,8 +52,9 @@ typedef struct
 
 // Windows Initialization Function. Also automatically initializes SDL2, SDL2_image, and SDL2_ttf
 bool init_SDL2_ui(WindowUI* window, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen);
-// Destroys WindowUI and quits SDL2 subsystems
-void destroy_SDL2_ui(WindowUI* windowUI);
+// quits SDL2 subsystems
+void quit_SDL2_ui();
+void destroy_window_ui(WindowUI* window);
 // Updates WindowUI state based on SDL_Event input - returns true if screensize changed
 bool windowUI_update(WindowUI* window, SDL_Event* e);
 // Updates window fullscreen or not - returns true if changed
@@ -299,9 +300,10 @@ void destroy_dropdown_menu(DropdownMenu* ddm);
 
 
 /* Helper functions */
-//Completes the destruction of the SDL2 UI system including WindowUI, UIController, StringMemory, and Arena
-//destory fonts before calling this function
-void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController);
+//Completes the destruction of the SDL2 UI system including  StringMemory, and Main area. All windows should be destroyed before this call
+void destroy_sdl2_ui_complete(StringMemory* sm, FontHolder* fh, Arena* arena);
+//destorys window and all its elements in uiController
+void destroy_window(WindowUI* windowUI, Arena* window_arena, StringMemory* sm, UIController* uiController);
 
 /* Tab Pannel */
 /* Allowing in one window mutliple tabs of differing elements being displayed when clicked */

@@ -2,6 +2,11 @@
 #include "../lib/Cimple_ui/Cimple_ui.h"
 
 
+EXPORT void CimpleUI_QuitSDL()
+{
+    quit_SDL2_ui();
+}
+
 /* Windows functions */
 EXPORT WindowUI_handle CimpleUI_InitWindow(Arena_handle arena, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen)
 {
@@ -13,7 +18,7 @@ EXPORT void CimpleUI_DestroyWindow(WindowUI_handle window)
 {
     if (window)
     {
-        destroy_SDL2_ui((WindowUI*)window);
+        destroy_window_ui((WindowUI*)window);
     }
 }
 
@@ -176,6 +181,56 @@ EXPORT uint32_t CimpleUI_TextBoxGetTextLength(TextBox_handle textbox)
     return tb->string->count +1;
 }
 
+/* TextField */
+EXPORT TextField_handle CimpleUI_CreateTextField(
+    Arena_handle arena,
+    UIController_handle uiController,
+    StringMemory_handle sm,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    uint8_t fontSize,
+    ColorRGBA color,
+    float x, float y, float width, float height)
+{
+    FontHolder* fontHolder = (FontHolder*)fh;
+    StringMemory* stringMemory = (StringMemory*)sm;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    return (TextField_handle)textfield_init(
+               (Arena*)arena,
+               (UIController*)uiController,
+               stringMemory,
+               fontHolder->fonts[fontIndex],
+               fontSize,
+               sdlColor,
+               x, y, width, height
+           );
+}
+
+EXPORT void CimpleUI_TextFieldAppendText(Arena_handle arena, StringMemory_handle sm, TextField_handle textfield, const char* text)
+{
+    textfield_append_text((Arena*)arena, (StringMemory*)sm, (TextField*)textfield, text);
+}
+
+EXPORT void CimpleUI_TextFieldGetText(TextField_handle textfield, char* dest)
+{
+    TextField* tf = (TextField*)textfield;
+    c_string_sendback(tf->string, dest);
+}
+//adds 1 for null terminator
+EXPORT uint32_t CimpleUI_TextFieldGetTextLength(TextField_handle textfield)
+{
+    TextField* tf = (TextField*)textfield;
+    return tf->string->count +1;
+}
+EXPORT void CimpleUI_TextField_Clear(TextField_handle textfield, StringMemory_handle sm, Arena_handle arena)
+{
+    TextField* tf = (TextField*)textfield;
+    StringMemory* stringmem = (StringMemory*)sm;
+    string_clear(tf->string, &stringmem, (Arena*)arena);
+    tf->textChanged = true;
+}
+
+
 
 /* Button functions */
 EXPORT BasicButton_handle CimpleUI_CreateButton(
@@ -322,6 +377,11 @@ EXPORT void CimpleUI_dropdown_menu_add_listener(
     void* userData)
 {
     dropdown_menu_add_listener((Arena*)arena, (DropdownMenu*)ddm, button_callback_wrapper, (void*)callback);
+}
+
+EXPORT int CimpleUI_dropdown_menu_get_state(DropdownMenu_handle ddm)
+{
+    return ((DropdownMenu*)ddm)->state;
 }
 
 EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm)

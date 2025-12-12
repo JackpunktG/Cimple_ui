@@ -24,6 +24,7 @@ typedef struct StringMemory_Opaque* StringMemory_handle;
 typedef struct WindowUI_Opaque* WindowUI_handle;
 typedef struct UIController_Opaque* UIController_handle;
 typedef struct TextBox_Opaque* TextBox_handle;
+typedef struct TextField_Opaque* TextField_handle;
 typedef struct BasicButton_Opaque* BasicButton_handle;
 typedef struct Label_Opaque* Label_handle;
 typedef struct TabPannel_Opaque* TabPannel_handle;
@@ -40,6 +41,9 @@ typedef struct
 
 // Callback type for button events
 typedef void (*ButtonClickCallback)(void* userData);
+
+// SDL Quit - init is handled in first window creation
+EXPORT void CimpleUI_QuitSDL();
 
 // Window functions
 EXPORT WindowUI_handle CimpleUI_InitWindow(Arena_handle arena, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen);
@@ -89,6 +93,22 @@ EXPORT void CimpleUI_TextBoxGetText(TextBox_handle textbox, char* dest);
 //adds 1 for null terminator
 EXPORT uint32_t CimpleUI_TextBoxGetTextLength(TextBox_handle textbox);
 EXPORT void CimpleUI_TextBox_Clear(TextBox_handle textbox, StringMemory_handle sm, Arena_handle arena);
+
+// TextField_handle
+EXPORT TextField_handle CimpleUI_CreateTextField(
+    Arena_handle arena,
+    UIController_handle uiController,
+    StringMemory_handle sm,
+    FontHolder_handle fh,
+    uint8_t fontIndex,
+    uint8_t fontSize,
+    ColorRGBA color,
+    float x, float y, float width, float height);
+EXPORT void CimpleUI_TextFieldAppendText(Arena_handle arena, StringMemory_handle sm, TextField_handle textfield, const char* text);
+EXPORT void CimpleUI_TextFieldGetText(TextField_handle textfield, char* dest);
+//adds 1 for null terminator
+EXPORT uint32_t CimpleUI_TextFieldGetTextLength(TextField_handle textfield);
+EXPORT void CimpleUI_TextField_Clear(TextField_handle textfield, StringMemory_handle sm, Arena_handle arena);
 
 // Button
 EXPORT BasicButton_handle CimpleUI_CreateButton(
@@ -148,6 +168,7 @@ EXPORT void CimpleUI_dropdown_menu_add_listener(
     Arena_handle arena, DropdownMenu_handle ddm, ButtonClickCallback callback,
     void* userData);
 
+EXPORT int CimpleUI_dropdown_menu_get_state(DropdownMenu_handle ddm);
 EXPORT int CimpleUI_dropdown_button_selected(DropdownMenu_handle ddm);
 EXPORT void CimpleUI_select_dropdown_menu_button(DropdownMenu_handle ddm, uint8_t buttonIndex);
 EXPORT void CimpleUI_reset_dropdown_menu(DropdownMenu_handle ddm);

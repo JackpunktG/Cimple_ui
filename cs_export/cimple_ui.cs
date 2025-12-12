@@ -63,6 +63,7 @@ namespace CimpleUI
     {
         NULL_ELEM,
         TEXTBOX_ELEM,
+        TEXTFIELD_ELEM,
         BUTTON_BASIC_ELEM,
         POPUP_NOTICE_ELEM,
         LABEL_ELEM,
@@ -70,10 +71,19 @@ namespace CimpleUI
         DROPDOWN_MENU_ELEM
     }
 
+    public enum DropdownMenu_State
+    {
+        DROPDOWN_NORMAL,
+        DROPDOWN_EXPANDED,
+        DROPDOWN_SELECTED
+    }
+
     /* ==== Native Imports - P/Invoke internal layer ==== */
     internal static class Native
     {
         const string DLL = "cimple_ui";
+
+        // Window, event and rendering functions
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_InitWindow(IntPtr arena,
@@ -99,13 +109,23 @@ namespace CimpleUI
         public static extern uint CimpleUI_GetWindowHeight(IntPtr window);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateArena();
+        public static extern void CimpleUI_UpdateUI(IntPtr uiC, float deltaTime);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyStringMemory(IntPtr sm);
+        public static extern void CimpleUI_RenderUI(IntPtr window, IntPtr uiC);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool CimpleUI_event_check(IntPtr window, IntPtr arena, IntPtr sm, IntPtr uiC);
+
+        // Call at the end of your program to cleanup SDL - init is handled in window creation
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_QuitSDL();
+
+
+        // Arena and memory management functions
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_CreateArena();
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_DestroyArena(IntPtr arena);
@@ -114,32 +134,41 @@ namespace CimpleUI
         public static extern IntPtr CimpleUI_CreateStringMemory(IntPtr arena, ushort maxStrings);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_DestroyStringMemory(IntPtr sm);
+
+
+
+        // UI Controller functions
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_CreateUIController(IntPtr arena, ushort totalElements);
+
+        //also destroys all ui elements created with this controller  
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_DestroyUIController(IntPtr uiC);
+
+
+        // Font Controller functions
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateFontHolder(IntPtr arena, byte maxFonts);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_LoadFont(IntPtr fh,
-            [MarshalAs(UnmanagedType.LPStr)] string fileName, byte fontSize);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateLabel(IntPtr window,
-            IntPtr arena, IntPtr uiController, int x, int y, int width, int hight,
-            [MarshalAs(UnmanagedType.LPStr)] string text, IntPtr fh, byte fontIndex, byte fontSize, ColorRGBA color);
+                [MarshalAs(UnmanagedType.LPStr)] string fileName, byte fontSize);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_DestroyFonts(IntPtr fh);
 
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateUIController(IntPtr arena, ushort totalElements);
 
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_UpdateUI(IntPtr uiC, float deltaTime);
+        // UI Element -------------------------------------------------
 
+        //label
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_RenderUI(IntPtr window, IntPtr uiC);
+        public static extern IntPtr CimpleUI_CreateLabel(IntPtr window,
+                IntPtr arena, IntPtr uiController, int x, int y, int width, int hight,
+                [MarshalAs(UnmanagedType.LPStr)] string text, IntPtr fh, byte fontIndex, byte fontSize, ColorRGBA color);
 
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyUIController(IntPtr uiC);
 
+        //textbox
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateTextBox(
             IntPtr arena, IntPtr uiController, IntPtr sm,
@@ -156,6 +185,11 @@ namespace CimpleUI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern uint CimpleUI_TextBoxGetTextLength(IntPtr textbox);
 
+        //main arena is the arena used to create the string memory contoller
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_TextBox_Clear(IntPtr textbox, IntPtr sm, IntPtr mainArena);
+
+        //button
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateButton(
             IntPtr arena, IntPtr uiController, IntPtr window,
@@ -164,9 +198,6 @@ namespace CimpleUI
             [MarshalAs(UnmanagedType.LPStr)] string text,
             ColorRGBA color);
 
-        //main arena is the arena used to create the string memory contoller
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_TextBox_Clear(IntPtr textbox, IntPtr sm, IntPtr mainArena);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void ButtonClickCallback(IntPtr userData);
@@ -178,11 +209,13 @@ namespace CimpleUI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CimpleUI_ButtonGetState(IntPtr button);
 
+        //popup notice
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_PopupNoticeInit(
            IntPtr uiController, [MarshalAs(UnmanagedType.LPStr)] string notice, [MarshalAs(UnmanagedType.LPStr)] string button,
            IntPtr fh, byte fontIndex, int width, int height, ColorRGBA color);
 
+        //tab pannel
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateTabPannel(
             IntPtr arena, IntPtr uiController, IntPtr window, [MarshalAs(UnmanagedType.LPStr)] string tabNames,
@@ -193,6 +226,7 @@ namespace CimpleUI
             IntPtr tabPannel, IntPtr elem, UI_Element uiElement, int tab);
 
 
+        //dropdown menu
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_dropdown_menu_init(
             IntPtr arena, IntPtr uiController, IntPtr window, byte maxCount, [MarshalAs(UnmanagedType.LPStr)] string label,
@@ -217,6 +251,27 @@ namespace CimpleUI
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_select_dropdown_menu_button(IntPtr ddm, byte buttonIndex);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CimpleUI_dropdown_menu_get_state(IntPtr ddm);
+
+        //textfield
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_CreateTextField(IntPtr arena, IntPtr uiController, IntPtr sm, IntPtr fh,
+                        byte fontIndex, byte fontSize, ColorRGBA color, float x, float y, float width, float height);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern uint CimpleUI_TextFieldGetTextLength(IntPtr textfield);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextFieldGetText(IntPtr textfield, byte[] dest);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextFieldAppendText(IntPtr arena, IntPtr sm, IntPtr textfield,
+            [MarshalAs(UnmanagedType.LPStr)] string text);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextField_Clear(IntPtr textfield, IntPtr sm, IntPtr arena);
 
         /*public static string textbox_gettext(intptr textbox)
         {
@@ -476,6 +531,56 @@ namespace CimpleUI
         }
     }
 
+
+    public class TextField
+    {
+        private IntPtr _handle;
+        private UIController _uiController;
+
+        public TextField(UIController uiController, float x, float y, float width, float height, TabPannel? tp = null, int? tab = null,
+            byte fontIndex = 0, byte fontSize = 20, ColorRGBA color = default)
+        {
+            _uiController = uiController ?? throw new ArgumentNullException(nameof(uiController));
+
+            if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
+                color = ColorRGBA.White;
+
+            _handle = Native.CimpleUI_CreateTextField(
+                uiController.Arena.Handle, uiController.Handle, uiController.StringMemory.Handle, uiController.FontHolder.Handle,
+                fontIndex, fontSize, color, x, y, width, height);
+
+            if (_handle == IntPtr.Zero)
+                throw new Exception("Failed to create textbox");
+
+            if (tp != null && tab != null)
+            {
+                TabPannel.add_elem(_handle, tp.Handle, UI_Element.TEXTFIELD_ELEM, (int)tab);
+            }
+        }
+
+        internal IntPtr Handle => _handle;
+
+        public void AppendText(string text)
+        {
+            if (text == null) throw new ArgumentNullException(nameof(text));
+            Native.CimpleUI_TextFieldAppendText(_uiController.Arena.Handle, _uiController.StringMemory.Handle, _handle, text);
+        }
+
+
+        public string ToText()
+        {
+            int length = (int)Native.CimpleUI_TextFieldGetTextLength(_handle);
+            byte[] tmp = new byte[length];
+            Native.CimpleUI_TextFieldGetText(_handle, tmp);
+            return System.Text.Encoding.UTF8.GetString(tmp, 0, length - 1);
+        }
+
+        public void Clear()
+        {
+            Native.CimpleUI_TextField_Clear(_handle, _uiController.StringMemory.Handle, _uiController.StringMemory.Arena.Handle);
+        }
+    }
+
     public class Button
     {
         private IntPtr _handle;
@@ -541,7 +646,7 @@ namespace CimpleUI
 
         //tabe names like "tab1|tab2|tab3|etc..."
         public TabPannel(UIController uiController, string tabNames, TabPannelPossition possition = TabPannelPossition.TABPANNEL_TOP,
-            int height = 50, byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default, int elemPerTab = 16)
+            int height = 50, byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default, int elemPerTab = 24)
         {
             if (uiController == null) throw new ArgumentNullException(nameof(uiController));
 
@@ -610,6 +715,8 @@ namespace CimpleUI
         internal IntPtr Handle => _handle;
 
         public int SelectedIndex => Native.CimpleUI_dropdown_button_selected(_handle);
+
+        public DropdownMenu_State State => (DropdownMenu_State)Native.CimpleUI_dropdown_menu_get_state(_handle);
 
         public void Reset() => Native.CimpleUI_reset_dropdown_menu(_handle);
 

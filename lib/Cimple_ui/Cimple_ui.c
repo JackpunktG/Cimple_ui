@@ -254,24 +254,13 @@ bool windowUI_update(WindowUI* window, SDL_Event* e)
 }
 
 
-void destroy_SDL2_ui(WindowUI* window)
+void quit_SDL2_ui()
 {
-    if (window->renderer != NULL)
-    {
-        SDL_DestroyRenderer(window->renderer);
-        window->renderer = NULL;
-    }
-
-    if (window->window != NULL)
-    {
-        SDL_DestroyWindow(window->window);
-        window->window = NULL;
-    }
     IMG_Quit();
     SDL_Quit();
 }
 
-void destroy_popup_window(WindowUI* window)
+void destroy_window_ui(WindowUI* window)
 {
     if (window->renderer != NULL)
     {
@@ -1206,14 +1195,6 @@ void button_basic_render(SDL_Renderer* renderer, BasicButton* button)
     SDL_RenderCopyF(renderer, button->text->mTexture, NULL, &dst);
 }
 
-void destroy_window(WindowUI* windowUI, Arena* arena, StringMemory* sm, UIController* uiController)
-{
-    string_memory_destroy(sm);
-    ui_controller_destroy(uiController);
-    arena_destroy(arena);
-    destroy_SDL2_ui(windowUI);
-}
-
 
 /* Tab Pannel functions */
 
@@ -1930,7 +1911,7 @@ void popup_notice_destroy(PopUpNotice* popup)
 {
     free_texture(popup->label->text);
     free_texture(popup->button->text);
-    destroy_popup_window(popup->window);
+    destroy_window_ui(popup->window);
 
     arena_destroy(popup->arena);
 }
@@ -2063,3 +2044,24 @@ void draw_filled_triangle(SDL_Renderer* renderer, SDL_Point p1, SDL_Point p2, SD
         }
     }
 }
+
+
+/* Destruction helper functions */
+void destroy_sdl2_ui_complete(StringMemory* sm, FontHolder* fh, Arena* arena)
+{
+    quit_SDL2_ui();
+
+    string_memory_destroy(sm);
+    destroy_fonts(fh);
+    arena_destroy(arena);
+}
+
+void destroy_window(WindowUI* windowUI, Arena* window_arena, StringMemory* sm, UIController* uiController)
+{
+    ui_controller_destroy(uiController);
+    destroy_window_ui(windowUI);
+    arena_destroy(window_arena);
+}
+
+
+

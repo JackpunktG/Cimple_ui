@@ -1,7 +1,6 @@
 #include "../lib/Cimple_ui/Cimple_ui.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <SDL2/SDL.h>
 
 
 typedef struct
@@ -10,7 +9,7 @@ typedef struct
     TTF_Font* font;
 } PopupNoticeData;
 
-/* Example callback (C) */
+/* Example callback */
 void on_button_click(const Event* ev, void* userData)
 {
     PopupNoticeData* data = (PopupNoticeData*)userData;
@@ -25,6 +24,7 @@ void on_close_button(const Event* ev, void* userData)
 
 int main(int argc, char* argv[])
 {
+
     WindowUI windowUI;
     if (!init_SDL2_ui(&windowUI, "SDL2 UI Example", 800, 800, true, false))
     {
@@ -42,11 +42,13 @@ int main(int argc, char* argv[])
 
     const char* text = "src/assets/fonts/Limelight-Regular.ttf";
 
-    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, true);
-    StringMemory* string_memory = string_memory_init(arena);
-    UIController* UIController = ui_controller_init(arena, 16);
-    FontHolder* fh = font_holder_init(arena, 1);
+    Arena* mainArena = arena_init(456, 8, false);
+    StringMemory* string_memory = string_memory_init(mainArena);
+    FontHolder* fh = font_holder_init(mainArena, 1);
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
+
+    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
+    UIController* UIController = ui_controller_init(arena, 16);
     TabPannel* tp = tab_pannel_init(arena, UIController, &windowUI, "Tab1|Tab2|Tab3", TABPANNEL_BUTTOM, 50, 16, fh->fonts[0], 0, COLOR[GRAY]);
     TextBox* textbox = textbox_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50.0f, 50.0f, 400.0f, DEFAULT_FONT_SIZE + 10);
     TextField* textfield = textfield_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50, 50, 400, DEFAULT_FONT_SIZE + 10);
@@ -105,9 +107,8 @@ int main(int argc, char* argv[])
         // Update screen
         SDL_RenderPresent(windowUI.renderer);
     }
-
-    destroy_fonts(fh);
     destroy_window(&windowUI, arena, string_memory, UIController);
+    destroy_sdl2_ui_complete(string_memory, fh, mainArena);
 
 
 
