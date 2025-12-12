@@ -475,7 +475,6 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                     if (mouse_in_box_check(mx, my, &tb->rect))
                     {
                         tb->focused = true;
-                        tb->caret = true;
                         uiController->elemFocus = tb;
                         uiController->focusedType = TEXTBOX_ELEM;
                         SDL_StartTextInput();
@@ -485,7 +484,6 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
                     else if (tb->focused)
                     {
                         tb->focused = false; //if mouse click happens outside the box change it to false
-                        tb->caret = false;
                         uiController->elemFocus = NULL;
                         uiController->focusedType = NULL_ELEM;
                         SDL_StopTextInput();
@@ -589,6 +587,7 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
 
     if (uiController->elemFocus == NULL) return;
     if (uiController->focusedType != TEXTBOX_ELEM) return;
+    //logic for inputing text to focused textbox
 
     if (e->type == SDL_TEXTINPUT)
     {
@@ -685,48 +684,14 @@ void ui_update(UIController* uiC, float deltaTime)
             break;
 
         }
-        case TEXTBOX_ELEM:
-        case LABEL_ELEM:
-        case DROPDOWN_MENU_ELEM:
         case NULL_ELEM:
+            break;
+        default:
             break;
         }
     }
-
-    //Caret blinking
-    if (uiC->elemFocus != NULL)
-    {
-        uiC->secondCounter += deltaTime;
-        {
-            switch(uiC->focusedType)
-            {
-            case TEXTBOX_ELEM:
-            {
-                TextBox* tb = (TextBox*)uiC->elemFocus;
-                assert(tb->focused);
-                {
-                    if (uiC->secondCounter >= 0.5f)
-                        tb->caret = !tb->caret;
-
-                }
-                break;
-            }
-            case NULL_ELEM:
-                assert(false);
-                break;
-            default:
-                break;
-            }
-
-        }
-        if (uiC->secondCounter >= 0.5f)
-            uiC->secondCounter = 0.0f;
-    }
-    else
-    {
-        uiC->secondCounter = 0.0f;
-    }
 }
+
 void render_tab_pannel_buttons(TabPannel* tp, SDL_Renderer* renderer);
 void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer);
 void ui_render(SDL_Renderer* renderer, UIController* uiC)
@@ -774,6 +739,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
             dropdown_menu_render(ddm, renderer);
             break;
         }
+        case TEXTFIELD_ELEM:
+        {
+            TextField* tf = (TextField*)uiC->element[i];
+            textfield_render(renderer, tf);
+            break;
+        }
         case NULL_ELEM:
             assert(false);
             break;
@@ -792,6 +763,12 @@ void ui_controller_destroy(UIController* uiC)
         {
             TextBox* tb = (TextBox*)uiC->element[i];
             free_texture(tb->texture);
+            break;
+        }
+        case TEXTFIELD_ELEM:
+        {
+            TextField* tf = (TextField*)uiC->element[i];
+            free_texture(tf->texture);
             break;
         }
         case BUTTON_BASIC_ELEM:
@@ -816,6 +793,12 @@ void ui_controller_destroy(UIController* uiC)
         {
             DropdownMenu* ddm = (DropdownMenu*)uiC->element[i];
             destroy_dropdown_menu(ddm);
+            break;
+        }
+        case POPUP_NOTICE_ELEM:
+        {
+            PopUpNotice* pn = (PopUpNotice*)uiC->element[i];
+            popup_notice_destroy(pn);
             break;
         }
         case NULL_ELEM:
@@ -956,7 +939,6 @@ TextBox* textbox_init(Arena* arena, UIController* uiC, StringMemory* sm, TTF_Fon
     tb->color = color;
     tb->font = font;
     tb->focused = false;
-    tb->caret = false;
     tb->textChanged = false;
     tb->hidden = false;
     tb->rect.x = x;
@@ -1023,16 +1005,6 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox)
         SDL_RenderCopyF(renderer, textbox->texture->mTexture, NULL, &dst);
     }
 
-
-    //caret render
-    /*
-    if(textbox->focused && textbox->caret)
-    {
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 185);
-        SDL_RenderDrawLineF(renderer, r.x + 2 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +2 + (textbox->texture->width),r.y +r.h -3);
-        SDL_RenderDrawLineF(renderer, r.x + 3 + (textbox->texture->width), r.y + r.h - (textbox->fontSize + 2), r.x +3 + (textbox->texture->width),r.y +r.h -3);
-    }
-    */
 }
 
 void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const char* text)
@@ -1044,6 +1016,85 @@ void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const
     textbox->textChanged = true;
 }
 
+
+/* TextField functions */
+
+TextField* textfield_init(Arena* arena, UIController* uiC, StringMemory* sm, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height)
+{
+    TextField* tf = arena_alloc(arena, sizeof(TextBox), NULL);
+    memset(tf, 0, sizeof(TextField));
+    tf->texture = arena_alloc(arena, sizeof(Texture), NULL);
+    tf->string = string_init(arena, sm);
+    init_texture(tf->texture);
+
+    tf->fontSize = fontSize;
+    tf->color = color;
+    tf->font = font;
+    tf->textChanged = false;
+    tf->hidden = false;
+    tf->rect.x = x;
+    tf->rect.y = y;
+    tf->rect.w = width;
+    tf->rect.h = height;
+
+    ui_elem_add(uiC, tf, TEXTFIELD_ELEM);
+
+    return tf;
+}
+
+
+void textfield_render(SDL_Renderer* renderer, TextField* textfield)
+{
+    if (textfield->hidden) return;
+
+    //string texture update
+    if (textfield->textChanged && textfield->string->count > 0)
+    {
+        TTF_SetFontSize(textfield->font, textfield->fontSize);
+        free_texture(textfield->texture);
+
+        char tmp[textfield->string->count +1];
+        c_string_sendback(textfield->string, tmp);
+        load_texture_from_rendered_text(textfield->texture, (int)(textfield->rect.w - 5),tmp, textfield->font, textfield->color, renderer);
+
+        textfield->textChanged = false;
+    }
+
+    if (textfield->string->count > 0)
+    {
+        if (textfield->texture->height > textfield->rect.h)
+            textfield->rect.h += textfield->fontSize;
+        else if (textfield->texture->height < textfield->rect.h - textfield->fontSize)
+            textfield->rect.h -= textfield->fontSize;
+    }
+    else if (textfield->string->count == 0)
+        textfield->rect.h = textfield->rect.h > textfield->fontSize + 10 ? textfield->rect.h -= textfield->fontSize : textfield->fontSize + 10;
+
+
+    SDL_Color color = COLOR[GRAY];
+    SDL_FRect r = textfield->rect;
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 185);
+    SDL_RenderDrawRectF(renderer, &r);
+
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 100);
+    SDL_RenderFillRectF(renderer, &r);
+
+    //string render
+    if (textfield->texture->mTexture != NULL && textfield->string->count > 0)
+    {
+        SDL_FRect dst = {r.x + 5, r.y + (r.h / 2) - (float)textfield->texture->height / 2, (float)textfield->texture->width, (float)textfield->texture->height};
+        SDL_RenderCopyF(renderer, textfield->texture->mTexture, NULL, &dst);
+    }
+}
+
+void textfield_append_text(Arena* arena, StringMemory* sm, TextField* textfield, const char* text)
+{
+    String* s = textfield->string;
+    if (string_c_append(arena, &s, sm, text) == 1)
+        textfield->string = s;
+
+    textfield->textChanged = true;
+}
 
 /* Button funtions */
 
@@ -1205,7 +1256,16 @@ void add_elem_to_pannel(void* elem, UI_Element type, TabPannel* tabPannel, uint8
             ddm->hidden = true;
             break;
         }
-        default:
+        case TEXTFIELD_ELEM:
+        {
+            TextField* tf = (TextField*)elem;
+            tf->hidden = true;
+            break;
+        }
+        case POPUP_NOTICE_ELEM:
+        case TABPANNEL_ELEM:
+        case NULL_ELEM:
+            assert(false);
             break;
         }
     }
@@ -1335,7 +1395,16 @@ void update_tab(TabPannel* tp)
                     ddm->hidden = false;
                     break;
                 }
-                default:
+                case TEXTFIELD_ELEM:
+                {
+                    TextField* tf = (TextField*)p->pannelElems[j];
+                    tf->hidden = false;
+                    break;
+                }
+                case POPUP_NOTICE_ELEM:
+                case TABPANNEL_ELEM:
+                case NULL_ELEM:
+                    assert(false);
                     break;
                 }
             }
@@ -1370,8 +1439,18 @@ void update_tab(TabPannel* tp)
                     ddm->hidden = true;
                     break;
                 }
-                default:
+                case TEXTFIELD_ELEM:
+                {
+                    TextField* tf = (TextField*)p->pannelElems[j];
+                    tf->hidden = true;;
                     break;
+                }
+                case POPUP_NOTICE_ELEM:
+                case TABPANNEL_ELEM:
+                case NULL_ELEM:
+                    assert(false);
+                    break;
+
                 }
             }
         }

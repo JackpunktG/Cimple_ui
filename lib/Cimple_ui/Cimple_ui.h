@@ -90,6 +90,7 @@ typedef enum
 {
     NULL_ELEM,
     TEXTBOX_ELEM,
+    TEXTFIELD_ELEM,
     BUTTON_BASIC_ELEM,
     POPUP_NOTICE_ELEM,
     LABEL_ELEM,
@@ -189,7 +190,6 @@ typedef struct
     SDL_Color color;
     uint8_t fontSize;
     bool focused;
-    bool caret;
     bool textChanged;
     bool hidden;
     /* XXX 7-byte padding */ // do we really need the hidden??
@@ -202,6 +202,27 @@ void textbox_render(SDL_Renderer* renderer, TextBox* textbox);
 // Appends c style string text to the TextBox's string
 void textbox_append_text(Arena* arena, StringMemory* sm, TextBox* textbox, const char* text);
 
+
+/* TextField */
+
+typedef struct
+{
+    SDL_FRect rect;
+    TTF_Font* font;
+    Texture* texture;
+    String* string;
+    SDL_Color color;
+    uint8_t fontSize;
+    bool textChanged;
+    bool hidden;
+} TextField;        //Textbox but can't be interacted with
+
+// Initializes a TextField structure give width and hight as funtions of screen dimensions
+TextField* textfield_init(Arena* arena, UIController* uiController, StringMemory* sm, TTF_Font* font, uint8_t fontSize, SDL_Color color, float x, float y, float width, float height);
+// Renders the TextField to the given renderer
+void textfield_render(SDL_Renderer* renderer, TextField* textfield);
+// Appends c style string text to the TextField's string
+void textfield_append_text(Arena* arena, StringMemory* sm, TextField* textfield, const char* text);
 
 
 /* Button */

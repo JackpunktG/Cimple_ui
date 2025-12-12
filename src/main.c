@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
     TabPannel* tp = tab_pannel_init(arena, UIController, &windowUI, "Tab1|Tab2|Tab3", TABPANNEL_BUTTOM, 50, 16, fh->fonts[0], 0, COLOR[GRAY]);
     TextBox* textbox = textbox_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50.0f, 50.0f, 400.0f, DEFAULT_FONT_SIZE + 10);
+    TextField* textfield = textfield_init(arena, UIController, string_memory, fh->fonts[0], DEFAULT_FONT_SIZE, COLOR[WHITE], 50, 50, 400, DEFAULT_FONT_SIZE + 10);
     BasicButton* quitB = button_basic_init(arena, UIController, 700, 700, 80, 50, "Quit", fh->fonts[0], 0, COLOR[RED], windowUI.renderer);
     event_emitter_add_listener(arena, quitB, BUTTON_BASIC_ELEM, on_close_button, &quit);
     BasicButton* button = button_basic_init(arena, UIController, 500, 50, 150, 50, "Click Me lolo", fh->fonts[0], 0, COLOR[BLUE], windowUI.renderer);
@@ -65,6 +66,7 @@ int main(int argc, char* argv[])
     add_elem_to_pannel(button, BUTTON_BASIC_ELEM, tp, 2);
     add_elem_to_pannel(quitB, BUTTON_BASIC_ELEM, tp, 2);
     add_elem_to_pannel(ddm, DROPDOWN_MENU_ELEM, tp, 3);
+    add_elem_to_pannel(textfield, TEXTFIELD_ELEM, tp, 1);
 
     Uint32 lastTime = SDL_GetTicks();
     while (!quit)
@@ -82,6 +84,9 @@ int main(int argc, char* argv[])
             {
                 screen_width = windowUI.width;
                 screen_height = windowUI.height;
+                char buffer[64];
+                snprintf(buffer, sizeof(buffer), "Window size: %dx%d\n", screen_width, screen_height);
+                textfield_append_text(arena, string_memory, textfield, buffer);
             }
             ui_event_check(arena, string_memory, UIController, &windowUI, &e);
         }
