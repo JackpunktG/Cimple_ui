@@ -85,7 +85,7 @@ rm windows_cimple_ui_lib.zip
 ````
 
 Here is a little example c# project of how the lib could be used    
-[Link Text](https://github.com/JackpunktG/Cimple_ui-zooverwaltung)
+[Zooverwaltung - typisch deutsche aufgabe... hehe](https://github.com/JackpunktG/Cimple_ui-zooverwaltung)
 
 
 
