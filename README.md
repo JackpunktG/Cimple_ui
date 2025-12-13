@@ -68,8 +68,26 @@ Element examples and functional example can be seen in the main file in the repo
 
 ## C# Bindings
 
+Cimple_ui also has C# bindings available in the Cimple_ui_cs repository. Simply use the link to get the shared lib straight to your directory
 
-    
+Linux:
+```bash
+wget https://github.com/JackpunktG/Cimple_ui/raw/de2f5e25c463b57b43cc6597efd9cf7beb5d9dc1/cs_export/linux_cimple_ui_lib.zip
+unzip linux_cimple_ui_lib.zip
+rm linux_cimple_ui_lib.zip
+````
+
+Windows:
+```bash
+wget https://github.com/JackpunktG/Cimple_ui/raw/de2f5e25c463b57b43cc6597efd9cf7beb5d9dc1/cs_export/windows_cimple_ui_lib.zip
+unzip windows_cimple_ui_lib.zip
+rm windows_cimple_ui_lib.zip
+````
+
+Here is a little example c# project of how the lib could be used    
+[Link Text](https://github.com/JackpunktG/Cimple_ui-zooverwaltung)
+
+
 
 ## Still under Construction
 
