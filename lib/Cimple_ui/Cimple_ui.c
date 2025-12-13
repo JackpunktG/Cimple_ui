@@ -2,6 +2,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <assert.h>

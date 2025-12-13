@@ -45,6 +45,7 @@ Best is to have one arena for the font holder and string memory that last the wh
     StringMemory* string_memory = string_memory_init(mainArena);
     FontHolder* fh = font_holder_init(mainArena, 1);
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
+````
 
 ```c
     Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
@@ -64,6 +65,11 @@ Best is to have one arena for the font holder and string memory that last the wh
 -> Thinking it might actually be better without, as we now only have arenas grouped by lifetimes or request size.
 
 Element examples and functional example can be seen in the main file in the repository.    
+
+## C# Bindings
+
+
+    
 
 ## Still under Construction
 
