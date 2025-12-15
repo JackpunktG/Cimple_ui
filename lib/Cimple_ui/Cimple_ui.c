@@ -211,6 +211,9 @@ bool windowUI_fullscreen(WindowUI* windowUI, SDL_Event* e)
 
 bool windowUI_update(WindowUI* window, SDL_Event* e)
 {
+    if (e->window.windowID != SDL_GetWindowID(window->window))
+        return false;
+
     if (e->type != SDL_WINDOWEVENT)
         return false;
 
@@ -255,6 +258,10 @@ bool windowUI_update(WindowUI* window, SDL_Event* e)
     return size_changed;
 }
 
+bool windowUI_has_focus(WindowUI* windowUI)
+{
+    return windowUI->mouseFocus || windowUI->mkeyboardFocus;
+}
 
 void quit_SDL2_ui()
 {
@@ -437,6 +444,8 @@ void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, 
         }
     }
 
+    if (!window->mkeyboardFocus && !window->mouseFocus)
+        return;
     // printf("UI Event Check: Event Type %d\n", e->type);
 
     if (e->type == SDL_MOUSEBUTTONDOWN)
@@ -2066,4 +2075,82 @@ void destroy_window(WindowUI* windowUI, Arena* window_arena, StringMemory* sm, U
 }
 
 
+/* Multi window functions */
 
+WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount)
+{
+    WindowHolder* wh = arena_alloc(mainArena, sizeof(WindowHolder), false);
+    memset(wh, 0, sizeof(WindowHolder));
+    wh->maxCount = maxCount;
+    wh->count = 0;
+    wh->windowController = arena_alloc(mainArena, sizeof(WindowController*) * maxCount, false);
+
+    return wh;
+};
+
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax)
+{
+    Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
+    WindowController* wc = arena_alloc(arena, sizeof(WindowController), false);
+    memset(wc, 0, sizeof(WindowController));
+    wc->window = create_arena_window_ui(title, width, height, arena, true, false);
+    wc->uiController = ui_controller_init(arena, uiElemMax);
+    wc->fh = fh;
+    wc->sm = sm;
+    wc->arena = arena;
+
+    assert(wh->maxCount > wh->count);
+    wh->windowController[wh->count++] = wc;
+
+    return wc;
+}
+
+bool multi_window_event_check(WindowHolder* wh, SDL_Event* e, uint16_t* windowIndex)
+{
+    bool windowchanged = false;
+    bool firstChange = true;
+    for (int i = 0; i < wh->count; ++i)
+    {
+        WindowController* wc = wh->windowController[i];
+        windowchanged = windowUI_update(wc->window, e);
+        if (windowchanged && firstChange && windowIndex != NULL)
+        {
+            *windowIndex = i;
+            firstChange = false;
+        }
+
+        ui_event_check(wc->arena, wc->sm, wc->uiController, wc->window, e);
+    }
+    return !firstChange;
+}
+
+void multi_window_ui_update(WindowHolder* wh, float deltaTime)
+{
+    for(int i = 0; i < wh->count; ++i)
+        ui_update(wh->windowController[i]->uiController, deltaTime);
+}
+
+void multi_window_render(WindowHolder* wh, SDL_Color color)
+{
+    for (int i = 0; i < wh->count; ++i)
+    {
+        WindowController* wc = wh->windowController[i];
+        clear_screen_with_color(wc->window->renderer, color);
+        ui_render(wc->window->renderer, wc->uiController);
+        SDL_RenderPresent(wc->window->renderer);
+    }
+}
+
+void destroy_window_controller(WindowHolder* wh, WindowController* wc)
+{
+    for (int i = 0; i < wh->count; ++i)
+    {
+        if(wh->windowController[i] == wc)
+        {
+            destroy_window(wc->window, wc->arena, wc->sm, wc->uiController);
+            wh->windowController[i] = wh->windowController[--wh->count];
+            return;
+        }
+    }
+    assert(false && "Window to destory not found");
+}

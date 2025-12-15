@@ -1,171 +1,152 @@
 #include "cimple_ui_export.h"
 #include "../lib/Cimple_ui/Cimple_ui.h"
 
-
-EXPORT void CimpleUI_QuitSDL()
+typedef struct
 {
+    WindowHolder* windowController;
+    StringMemory* sm;
+    FontHolder* fh;
+    Arena* arena;
+} CimpleUI;
+
+EXPORT void CimpleUI_QuitSDL(CimpleUI_handle cimpleUI)
+{
+    destroy_fonts(((CimpleUI*)cimpleUI)->fh);
+    string_memory_destroy(((CimpleUI*)cimpleUI)->sm);
+    arena_destroy(((CimpleUI*)cimpleUI)->arena);
     quit_SDL2_ui();
 }
 
 /* Windows functions */
-EXPORT WindowUI_handle CimpleUI_InitWindow(Arena_handle arena, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen)
+
+EXPORT CimpleUI_handle CimpleUI_Init(int8_t maxWindows, int8_t maxFonts)
 {
-    Arena* arena_ptr = (Arena*)arena;
-    return (WindowUI_handle)create_arena_window_ui(title, width, height, arena_ptr, vsync, fullscreen);
+    Arena* mainArena = arena_init(ARENA_BLOCK_SIZE /4, 8, false);
+    CimpleUI* cimpleUI = arena_alloc(mainArena, sizeof(CimpleUI), false);
+    cimpleUI->windowController = window_holder_init(mainArena, maxWindows);
+    cimpleUI->sm = string_memory_init(mainArena);
+    cimpleUI->fh = font_holder_init(mainArena, maxFonts);
+    cimpleUI->arena = mainArena;
+
+    return (CimpleUI_handle)cimpleUI;
 }
 
-EXPORT void CimpleUI_DestroyWindow(WindowUI_handle window)
+EXPORT WindowController_handle CimpleUI_CreateWindowController(
+    CimpleUI_handle cimpleUI,
+    const char* title,
+    uint32_t width,
+    uint32_t height, uint16_t uiElemMax)
 {
-    if (window)
+    CimpleUI* ui = (CimpleUI*)cimpleUI;
+    WindowHolder* windowController = ui->windowController;
+    StringMemory* sm = ui->sm;
+    FontHolder* fh = ui->fh;
+    return (WindowController_handle)window_controller_init(windowController, sm, fh, title, width, height, uiElemMax);
+}
+
+EXPORT bool CimpleUI_MultiWindowEventCheck(CimpleUI_handle cimpleUI, uint16_t* windowID)
+{
+    CimpleUI* ui = (CimpleUI*)cimpleUI;
+    WindowHolder* windowController = ui->windowController;
+
+    SDL_Event e;
+    bool windowChanged = false;
+    bool firstChange = true;
+    uint16_t localWindowID = 0;
+    while (SDL_PollEvent(&e) != 0)
     {
-        destroy_window_ui((WindowUI*)window);
+        if(multi_window_event_check(windowController, &e, &localWindowID))
+        {
+            windowChanged = true;
+            if (windowID != NULL && firstChange)
+            {
+                *windowID = localWindowID;
+                firstChange = false;
+            }
+        }
     }
+    return windowChanged;
 }
 
-
-EXPORT void CimpleUI_ClearScreen(WindowUI_handle window, ColorRGBA color)
+EXPORT void CimpleUI_MultiWindowUIUpdate(CimpleUI_handle cimpleUI, float deltaTime)
 {
-    WindowUI* w = (WindowUI*)window;
+    multi_window_ui_update(((CimpleUI*)cimpleUI)->windowController, deltaTime);
+}
+
+EXPORT void CimpleUI_MultiWindowRender(CimpleUI_handle cimpleUI, ColorRGBA color)
+{
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
-    clear_screen_with_color(w->renderer, sdlColor);
+    multi_window_render(((CimpleUI*)cimpleUI)->windowController, sdlColor);
 }
 
-EXPORT void CimpleUI_Present(WindowUI_handle window)
+EXPORT void CimpleUI_DestroyWindowController(CimpleUI_handle cimpleUI, WindowController_handle wc)
 {
-    WindowUI* w = (WindowUI*)window;
-    SDL_RenderPresent(w->renderer);
+    destroy_window_controller(((CimpleUI*)cimpleUI)->windowController, (WindowController*)wc);
 }
 
-EXPORT uint32_t CimpleUI_GetWindowWidth(WindowUI_handle window)
+EXPORT uint32_t CimpleUI_GetWindowWidth(WindowController_handle windowController)
 {
-    return ((WindowUI*)window)->width;
+    return ((WindowController*)windowController)->window->width;
 }
 
-EXPORT uint32_t CimpleUI_GetWindowHeight(WindowUI_handle window)
+EXPORT uint32_t CimpleUI_GetWindowHeight(WindowController_handle windowController)
 {
-    return ((WindowUI*)window)->height;
+    return ((WindowController*)windowController)->window->height;
 }
 
-
-/* Arena Functions */
-
-EXPORT Arena_handle CimpleUI_CreateArena()
-{
-    return (Arena_handle)arena_init(1024 * 1024, 8, false);
-}
-
-EXPORT void CimpleUI_DestroyArena(Arena_handle arena)
-{
-    if (arena)
-    {
-        arena_destroy((Arena*)arena);
-    }
-}
-
-
-/* String memory functions */
-EXPORT StringMemory_handle CimpleUI_CreateStringMemory(Arena_handle arena, uint16_t maxStrings)
-{
-    return (StringMemory_handle)string_memory_init((Arena*)arena);
-}
-
-EXPORT void CimpleUI_DestroyStringMemory(StringMemory_handle sm)
-{
-    if (sm)
-    {
-        string_memory_destroy((StringMemory*)sm);
-    }
-}
 
 // Font holder
-EXPORT FontHolder_handle CimpleUI_CreateFontHolder(Arena_handle arena, uint8_t maxFonts)
+EXPORT void CimpleUI_LoadFont(CimpleUI_handle cimpleUI, const char* fileName, uint8_t fontSize)
 {
-    return (FontHolder_handle)font_holder_init((Arena*)arena, maxFonts);
-}
-
-EXPORT void CimpleUI_LoadFont(FontHolder_handle fh, const char* fileName, uint8_t fontSize)
-{
-    load_fonts((FontHolder*)fh, fileName, fontSize);
-}
-
-EXPORT void CimpleUI_DestroyFonts(FontHolder_handle fh)
-{
-    destroy_fonts((FontHolder*)fh);
-}
-
-
-/* UI Controller */
-EXPORT UIController_handle CimpleUI_CreateUIController(Arena_handle arena, uint16_t totalElements)
-{
-    return (UIController_handle)ui_controller_init((Arena*)arena, totalElements);
-}
-
-EXPORT void CimpleUI_UpdateUI(UIController_handle uiC, float deltaTime)
-{
-    ui_update((UIController*)uiC, deltaTime);
-}
-
-EXPORT void CimpleUI_RenderUI(WindowUI_handle window, UIController_handle uiC)
-{
-    WindowUI* w = (WindowUI*)window;
-    ui_render(w->renderer, (UIController*)uiC);
-}
-
-EXPORT void CimpleUI_DestroyUIController(UIController_handle uiC)
-{
-    ui_controller_destroy((UIController*)uiC);
+    load_fonts(((CimpleUI*)cimpleUI)->fh, fileName, fontSize);
 }
 
 /* Label_handle */
 EXPORT Label_handle CimpleUI_CreateLabel(
-    WindowUI_handle window, Arena_handle arena, UIController_handle uiController,
-    int x, int y, int width, int height, const char* text, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
+    WindowController_handle windowController, int x, int y, int width, int height, const char* text,
+    uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
 {
-    WindowUI* w = (WindowUI*)window;
-    return (Label_handle)label_basic_init((Arena*)arena, (UIController*)uiController, x, y, width, height, text,
-                                          ((FontHolder*)fh)->fonts[fontIndex], fontSize, (SDL_Color)
+    WindowController* w = (WindowController*)windowController;
+    return (Label_handle)label_basic_init(w->arena, w->uiController, x, y, width, height, text,
+                                          w->fh->fonts[fontIndex], fontSize, (SDL_Color)
     {
         color.r, color.g, color.b, color.a
-    }, w->renderer);
+    }, w->window->renderer);
 }
 
 /* TextBox */
 EXPORT TextBox_handle CimpleUI_CreateTextBox(
-    Arena_handle arena,
-    UIController_handle uiController,
-    StringMemory_handle sm,
-    FontHolder_handle fh,
+    WindowController_handle windowController,
     uint8_t fontIndex,
     uint8_t fontSize,
     ColorRGBA color,
     float x, float y, float width, float height)
 {
-    FontHolder* fontHolder = (FontHolder*)fh;
-    StringMemory* stringMemory = (StringMemory*)sm;
+    WindowController* w = (WindowController*)windowController;
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
 
     return (TextBox_handle)textbox_init(
-               (Arena*)arena,
-               (UIController*)uiController,
-               stringMemory,
-               fontHolder->fonts[fontIndex],
+               w->arena,
+               w->uiController,
+               w->sm,
+               w->fh->fonts[fontIndex],
                fontSize,
                sdlColor,
                x, y, width, height
            );
 }
 
-EXPORT void CimpleUI_TextBoxAppendText(Arena_handle arena, StringMemory_handle sm, TextBox_handle textbox, const char* text)
+EXPORT void CimpleUI_TextBoxAppendText(WindowController_handle windowController, TextBox_handle textbox, const char* text)
 {
-    textbox_append_text((Arena*)arena, (StringMemory*)sm, (TextBox*)textbox, text);
+    WindowController* w = (WindowController*)windowController;
+    textbox_append_text(w->arena, w->sm, (TextBox*)textbox, text);
 }
 
-//
-EXPORT void CimpleUI_TextBox_Clear(TextBox_handle textbox, StringMemory_handle sm, Arena_handle mainArena)
+EXPORT void CimpleUI_TextBox_Clear(TextBox_handle textbox, CimpleUI_handle cimpleUI)
 {
+    CimpleUI* ui = (CimpleUI*)cimpleUI;
     TextBox* tb = (TextBox*)textbox;
-    StringMemory* stringmem = (StringMemory*)sm;
-    string_clear(tb->string, &stringmem, (Arena*)mainArena);
+    string_clear(tb->string, &ui->sm, ui->arena);
     tb->textChanged = true;
 };
 
@@ -183,32 +164,29 @@ EXPORT uint32_t CimpleUI_TextBoxGetTextLength(TextBox_handle textbox)
 
 /* TextField */
 EXPORT TextField_handle CimpleUI_CreateTextField(
-    Arena_handle arena,
-    UIController_handle uiController,
-    StringMemory_handle sm,
-    FontHolder_handle fh,
+    WindowController_handle windowController,
     uint8_t fontIndex,
     uint8_t fontSize,
     ColorRGBA color,
     float x, float y, float width, float height)
 {
-    FontHolder* fontHolder = (FontHolder*)fh;
-    StringMemory* stringMemory = (StringMemory*)sm;
+    WindowController* w = (WindowController*)windowController;
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
     return (TextField_handle)textfield_init(
-               (Arena*)arena,
-               (UIController*)uiController,
-               stringMemory,
-               fontHolder->fonts[fontIndex],
+               w->arena,
+               w->uiController,
+               w->sm,
+               w->fh->fonts[fontIndex],
                fontSize,
                sdlColor,
                x, y, width, height
            );
 }
 
-EXPORT void CimpleUI_TextFieldAppendText(Arena_handle arena, StringMemory_handle sm, TextField_handle textfield, const char* text)
+EXPORT void CimpleUI_TextFieldAppendText(WindowController_handle windowController, TextField_handle textfield, const char* text)
 {
-    textfield_append_text((Arena*)arena, (StringMemory*)sm, (TextField*)textfield, text);
+    WindowController* w = (WindowController*)windowController;
+    textfield_append_text(w->arena, w->sm, (TextField*)textfield, text);
 }
 
 EXPORT void CimpleUI_TextFieldGetText(TextField_handle textfield, char* dest)
@@ -222,41 +200,39 @@ EXPORT uint32_t CimpleUI_TextFieldGetTextLength(TextField_handle textfield)
     TextField* tf = (TextField*)textfield;
     return tf->string->count +1;
 }
-EXPORT void CimpleUI_TextField_Clear(TextField_handle textfield, StringMemory_handle sm, Arena_handle arena)
+
+EXPORT void CimpleUI_TextField_Clear(TextField_handle textfield, CimpleUI_handle cimpleUI)
 {
+    CimpleUI* ui = (CimpleUI*)cimpleUI;
     TextField* tf = (TextField*)textfield;
-    StringMemory* stringmem = (StringMemory*)sm;
-    string_clear(tf->string, &stringmem, (Arena*)arena);
+    StringMemory* stringmem = ui->sm;
+    string_clear(tf->string, &stringmem, ui->arena);
     tf->textChanged = true;
-}
+};
 
 
 
 /* Button functions */
 EXPORT BasicButton_handle CimpleUI_CreateButton(
-    Arena_handle arena,
-    UIController_handle uiController,
-    WindowUI_handle window,
-    FontHolder_handle fh,
+    WindowController_handle windowController,
     uint8_t fontIndex,
     uint8_t fontSize,
     int x, int y, int width, int height,
     const char* text,
     ColorRGBA color)
 {
-    WindowUI* w = (WindowUI*)window;
-    FontHolder* fontHolder = (FontHolder*)fh;
+    WindowController* w = (WindowController*)windowController;
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
 
     return (BasicButton_handle)button_basic_init(
-               (Arena*)arena,
-               (UIController*)uiController,
+               w->arena,
+               w->uiController,
                x, y, width, height,
                text,
-               fontHolder->fonts[fontIndex],
+               w->fh->fonts[fontIndex],
                fontSize,
                sdlColor,
-               w->renderer
+               w->window->renderer
            );
 }
 
@@ -270,10 +246,10 @@ static void button_callback_wrapper(const Event* ev, void* user_data)
     }
 }
 
-EXPORT void CimpleUI_ButtonAddClickListener(Arena_handle arena, BasicButton_handle button, ButtonClickCallback callback, void* userData)
+EXPORT void CimpleUI_ButtonAddClickListener(WindowController_handle windowController, BasicButton_handle button, ButtonClickCallback callback, void* userData)
 {
     // Store the callback in a way that can be called from C#
-    button_basic_add_listener((Arena*)arena, (BasicButton*)button, button_callback_wrapper, (void*)callback);
+    button_basic_add_listener(((WindowController*)windowController)->arena, (BasicButton*)button, button_callback_wrapper, (void*)callback);
 }
 
 EXPORT int CimpleUI_ButtonGetState(BasicButton_handle button)
@@ -281,47 +257,28 @@ EXPORT int CimpleUI_ButtonGetState(BasicButton_handle button)
     return ((BasicButton*)button)->state;
 }
 
-/* UI-update function */
-EXPORT bool CimpleUI_event_check(WindowUI_handle window, Arena_handle arena, StringMemory_handle sm, UIController_handle uiC)
-{
-    SDL_Event e;
-    bool change = false;
-
-    while(SDL_PollEvent(&e) != 0)
-    {
-        ui_event_check((Arena*)arena, (StringMemory*)sm, (UIController*)uiC, (WindowUI*)window, &e);
-
-        if (windowUI_update((WindowUI*)window, &e) || windowUI_fullscreen((WindowUI*)window, &e))
-            change = true;
-    }
-    return change;
-}
-
 
 EXPORT TabPannel_handle CimpleUI_CreateTabPannel(
-    Arena_handle arena,
-    UIController_handle uiController,
-    WindowUI_handle window,
+    WindowController_handle windowController,
     const char* tabNames,
     int tabPosition,
-    FontHolder_handle fh,
     uint8_t fontIndex,
     uint8_t fontSize,
     int height,
     ColorRGBA color, int elemPerTab)
 {
-    FontHolder* fontHolder = (FontHolder*)fh;
+    WindowController* w = (WindowController*)windowController;
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
 
     return (TabPannel_handle)tab_pannel_init(
-               (Arena*)arena,
-               (UIController*)uiController,
-               (WindowUI*)window,
+               w->arena,
+               w->uiController,
+               w->window,
                tabNames,
                (enum TabPannelPossition)tabPosition,
                height,
                elemPerTab,
-               fontHolder->fonts[fontIndex],
+               w->fh->fonts[fontIndex],
                fontSize,
                sdlColor
            );
@@ -339,28 +296,24 @@ EXPORT void CimpleUI_AddElementToTabPannel(
 
 /* Drop down menu */
 EXPORT DropdownMenu_handle CimpleUI_dropdown_menu_init(
-    Arena_handle arena, UIController_handle uiController,
-    WindowUI_handle window, uint8_t maxCount, const char* label,
-    FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize,
+    WindowController_handle windowController, uint8_t maxCount, const char* label, uint8_t fontIndex, uint8_t fontSize,
     int x, int y, int w, int h, ColorRGBA color)
 {
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
-    WindowUI* win = (WindowUI*)window;
-    FontHolder* f = (FontHolder*)fh;
+    WindowController* wC = (WindowController*)windowController;
     return (DropdownMenu_handle)dropdown_menu_init(
-               (Arena*)arena, (UIController*)uiController,
-               win->renderer, maxCount, label, f->fonts[fontIndex], fontSize,
+               wC->arena, wC->uiController,
+               wC->window->renderer, maxCount, label, wC->fh->fonts[fontIndex], fontSize,
                x, y, w, h, sdlColor);
 }
 
 EXPORT void CimpleUI_dropdown_menu_populate(
-    Arena_handle arena, WindowUI_handle window, DropdownMenu_handle ddm,
-    const char* textString, FontHolder_handle fh, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
+    WindowController_handle windowController, DropdownMenu_handle ddm,
+    const char* textString, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color)
 {
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
-    WindowUI* w = (WindowUI*)window;
-    FontHolder* font = (FontHolder*)fh;
-    dropdown_menu_populate((Arena*) arena, w->renderer, font->fonts[fontIndex], (DropdownMenu*)ddm,
+    WindowController* w = (WindowController*)windowController;
+    dropdown_menu_populate(w->arena, w->window->renderer, w->fh->fonts[fontIndex], (DropdownMenu*)ddm,
                            textString, fontSize, sdlColor);
 }
 static void dropdown_menu_callback_wrapper(const Event* ev, void* user_data)
@@ -373,10 +326,11 @@ static void dropdown_menu_callback_wrapper(const Event* ev, void* user_data)
 }
 
 EXPORT void CimpleUI_dropdown_menu_add_listener(
-    Arena_handle arena, DropdownMenu_handle ddm, ButtonClickCallback callback,
+    WindowController_handle windowController, DropdownMenu_handle ddm, ButtonClickCallback callback,
     void* userData)
 {
-    dropdown_menu_add_listener((Arena*)arena, (DropdownMenu*)ddm, button_callback_wrapper, (void*)callback);
+    WindowController* w = (WindowController*)windowController;
+    dropdown_menu_add_listener(w->arena, (DropdownMenu*)ddm, button_callback_wrapper, (void*)callback);
 }
 
 EXPORT int CimpleUI_dropdown_menu_get_state(DropdownMenu_handle ddm)
@@ -399,16 +353,17 @@ EXPORT void CimpleUI_select_dropdown_menu_button(DropdownMenu_handle ddm, uint8_
 
 /* Popup Notice */
 EXPORT void CimpleUI_PopupNoticeInit(
-    UIController_handle uiController,
+    WindowController_handle windowController,
     const char* noticeText,
     const char* buttonText,
-    FontHolder_handle fh,
     uint8_t fontIndex,
     int width,
     int height,
     ColorRGBA color)
 {
-    FontHolder* fontHolder = (FontHolder*)fh;
+    WindowController* w = (WindowController*)windowController;
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
-    popup_notice_init((UIController*)uiController, noticeText, buttonText, fontHolder->fonts[fontIndex], width, height, sdlColor);
+    popup_notice_init(w->uiController, noticeText, buttonText, w->fh->fonts[fontIndex], width, height, sdlColor);
 }
+
+

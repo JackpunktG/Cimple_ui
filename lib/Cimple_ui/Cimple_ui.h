@@ -59,10 +59,13 @@ void destroy_window_ui(WindowUI* window);
 bool windowUI_update(WindowUI* window, SDL_Event* e);
 // Updates window fullscreen or not - returns true if changed
 bool windowUI_fullscreen(WindowUI* windowUI, SDL_Event* e);
+// true if window keyboard or mouse focus
+bool windowUI_has_focus(WindowUI* windowUI);
 // Clears the screen with the given colour
 void clear_screen_with_color(SDL_Renderer* renderer, SDL_Color colour);
 /* Area memory window returns for pop-ups etc */
 WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, bool vsync, bool fullscreen);
+
 
 
 typedef struct
@@ -115,7 +118,7 @@ typedef struct
 UIController* ui_controller_init(Arena* arena, uint16_t totalElements);
 // checks UI elements to see if it is being interacted with and controller appending text etc
 void ui_event_check(Arena* arena, StringMemory* sm, UIController* uiController, WindowUI* window, SDL_Event* e);
-void ui_update(UIController* uiC, float deltaTime); // Updates UI elements (for caret blinking, etc)
+void ui_update(UIController* uiC, float deltaTime); // Updates UI elements
 void ui_render(SDL_Renderer* renderer, UIController* uiC);
 // Destroys all the textures in the UIController
 void ui_controller_destroy(UIController* uiC);
@@ -352,5 +355,35 @@ typedef struct
 //basic pop up destory itself on button press
 PopUpNotice* popup_notice_init(UIController* uiC, const char* notice, const char* button, TTF_Font* font, uint32_t width, uint32_t height, SDL_Color color);
 void popup_notice_destroy(PopUpNotice* popup);
+
+
+/* Multi Window UI Helper Fuctions */
+
+typedef struct
+{
+    WindowUI* window;
+    Arena* arena;
+    UIController* uiController;
+    StringMemory* sm;
+    FontHolder* fh;
+} WindowController;
+
+typedef struct
+{
+    WindowController** windowController;
+    uint16_t count;
+    uint16_t maxCount;
+} WindowHolder;
+
+//destruction is with mainArena
+WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount);
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax);
+// check events for all windows - returns true if any window changed size - windowID is set to changed window index
+//windowID can be NULL if not needed
+bool multi_window_event_check(WindowHolder* wh, SDL_Event* e, uint16_t* windowID);
+void multi_window_ui_update(WindowHolder* wh, float deltaTime);
+void multi_window_render(WindowHolder* wh, SDL_Color color);
+//destory window and then replaces that slot with the last on created!
+void destroy_window_controller(WindowHolder* wh, WindowController* wc);
 
 #endif

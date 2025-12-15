@@ -83,143 +83,133 @@ namespace CimpleUI
     {
         const string DLL = "cimple_ui";
 
-        // Window, event and rendering functions
-
+        // Initialization
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_InitWindow(IntPtr arena,
-            [MarshalAs(UnmanagedType.LPStr)] string title,
-            uint width, uint height, bool vsync, bool fullscreen);
+        public static extern IntPtr CimpleUI_Init(byte maxWindows, byte maxFonts);
 
+        // CimpleUI shutdown and SDL quit
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyWindow(IntPtr window);
+        public static extern void CimpleUI_QuitSDL(IntPtr cimpleUI);
 
+        // Event check
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool CimpleUI_PollEvent(IntPtr window);
+        public static extern bool CimpleUI_MultiWindowEventCheck(IntPtr cimpleUI, out ushort windowID);
 
+        // Update UI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_ClearScreen(IntPtr window, ColorRGBA color);
+        public static extern void CimpleUI_MultiWindowUIUpdate(IntPtr cimpleUI, float deltaTime);
 
+        // Render UI with clear color and present
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_Present(IntPtr window);
+        public static extern void CimpleUI_MultiWindowRender(IntPtr cimpleUI, ColorRGBA color);
 
+        // Window creating 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern uint CimpleUI_GetWindowWidth(IntPtr window);
+        public static extern IntPtr CimpleUI_CreateWindowController(IntPtr cimpleUI,
+        [MarshalAs(UnmanagedType.LPStr)] string title, uint width, uint height, short uiElemMax);
 
+        // Destroy WindowController
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern uint CimpleUI_GetWindowHeight(IntPtr window);
+        public static extern void CimpleUI_DestroyWindowController(IntPtr cimpleUI, IntPtr windowController);
 
+        // Get window width and height
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_UpdateUI(IntPtr uiC, float deltaTime);
-
+        public static extern uint CimpleUI_GetWindowWidth(IntPtr windowController);
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_RenderUI(IntPtr window, IntPtr uiC);
+        public static extern uint CimpleUI_GetWindowHeight(IntPtr windowController);
 
+        // Loading font
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool CimpleUI_event_check(IntPtr window, IntPtr arena, IntPtr sm, IntPtr uiC);
+        public static extern void CimpleUI_LoadFont(IntPtr cimpleUI,
+        [MarshalAs(UnmanagedType.LPStr)] string fileName, byte fontSize);
 
-        // Call at the end of your program to cleanup SDL - init is handled in window creation
+        // Create Label
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_QuitSDL();
+        public static extern IntPtr CimpleUI_CreateLabel(IntPtr windowController, int x, int y, int width, int height,
+                [MarshalAs(UnmanagedType.LPStr)] string text, byte fontIndex, byte fontSize, ColorRGBA color);
 
 
-        // Arena and memory management functions
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateArena();
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyArena(IntPtr arena);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateStringMemory(IntPtr arena, ushort maxStrings);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyStringMemory(IntPtr sm);
+        // Callback delegate 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void ButtonClickCallback(IntPtr userData);
 
 
-
-        // UI Controller functions
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateUIController(IntPtr arena, ushort totalElements);
-
-        //also destroys all ui elements created with this controller  
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyUIController(IntPtr uiC);
-
-
-        // Font Controller functions
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateFontHolder(IntPtr arena, byte maxFonts);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_LoadFont(IntPtr fh,
-                [MarshalAs(UnmanagedType.LPStr)] string fileName, byte fontSize);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_DestroyFonts(IntPtr fh);
-
-
-        // UI Element -------------------------------------------------
-
-        //label
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateLabel(IntPtr window,
-                IntPtr arena, IntPtr uiController, int x, int y, int width, int hight,
-                [MarshalAs(UnmanagedType.LPStr)] string text, IntPtr fh, byte fontIndex, byte fontSize, ColorRGBA color);
-
-
-        //textbox
+        // Textbox functions
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateTextBox(
-            IntPtr arena, IntPtr uiController, IntPtr sm,
-            IntPtr fh, byte fontIndex, byte fontSize,
-            ColorRGBA color, float x, float y, float width, float height);
+            IntPtr windowController,
+            byte fontIndex,
+            byte fontSize,
+            ColorRGBA color,
+            float x, float y, float width, float height);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_TextBoxAppendText(IntPtr arena, IntPtr sm, IntPtr textbox,
-            [MarshalAs(UnmanagedType.LPStr)] string text);
+        public static extern void CimpleUI_TextBoxAppendText(
+            IntPtr windowController, IntPtr textbox, [MarshalAs(UnmanagedType.LPStr)] string text);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_TextBoxGetText(IntPtr textbox, byte[] dest);
+        public static extern void CimpleUI_TextBoxGetText(
+            IntPtr textbox, byte[] dest);
+
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern uint CimpleUI_TextBoxGetTextLength(IntPtr textbox);
 
-        //main arena is the arena used to create the string memory contoller
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_TextBox_Clear(IntPtr textbox, IntPtr sm, IntPtr mainArena);
+        public static extern void CimpleUI_TextBox_Clear(IntPtr textbox, IntPtr cimpleUI);
 
-        //button
+        // TextField functions
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_CreateTextField(
+            IntPtr windowController,
+            byte fontIndex,
+            byte fontSize,
+            ColorRGBA color,
+            float x, float y, float width, float height);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextFieldAppendText(
+            IntPtr windowController, IntPtr textfield, [MarshalAs(UnmanagedType.LPStr)] string text);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextFieldGetText(
+            IntPtr textfield, byte[] dest);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern uint CimpleUI_TextFieldGetTextLength(IntPtr textfield);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_TextField_Clear(IntPtr textfield, IntPtr cimpleUI);
+
+
+        // Button functions
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateButton(
-            IntPtr arena, IntPtr uiController, IntPtr window,
-            IntPtr fh, byte fontIndex, byte fontSize,
+            IntPtr windowController,
+            byte fontIndex,
+            byte fontSize,
             int x, int y, int width, int height,
             [MarshalAs(UnmanagedType.LPStr)] string text,
             ColorRGBA color);
 
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void ButtonClickCallback(IntPtr userData);
-
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_ButtonAddClickListener(IntPtr arena, IntPtr button,
-            ButtonClickCallback callback, IntPtr userData);
+        public static extern void CimpleUI_ButtonAddClickListener(IntPtr windowController, IntPtr button,
+           ButtonClickCallback callback, IntPtr userData);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CimpleUI_ButtonGetState(IntPtr button);
 
-        //popup notice
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_PopupNoticeInit(
-           IntPtr uiController, [MarshalAs(UnmanagedType.LPStr)] string notice, [MarshalAs(UnmanagedType.LPStr)] string button,
-           IntPtr fh, byte fontIndex, int width, int height, ColorRGBA color);
 
-        //tab pannel
+        // TabPannel functions
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateTabPannel(
-            IntPtr arena, IntPtr uiController, IntPtr window, [MarshalAs(UnmanagedType.LPStr)] string tabNames,
-            TabPannelPossition possition, IntPtr fh, byte fontIndex, byte fontSize, int height, ColorRGBA color, int elemPerTab);
+            IntPtr windowController,
+            [MarshalAs(UnmanagedType.LPStr)] string tabNames,
+            TabPannelPossition possition,
+            byte fontIndex,
+            byte fontSize,
+            int height,
+            ColorRGBA color, int elemPerTab);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_AddElementToTabPannel(
@@ -229,18 +219,18 @@ namespace CimpleUI
         //dropdown menu
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_dropdown_menu_init(
-            IntPtr arena, IntPtr uiController, IntPtr window, byte maxCount, [MarshalAs(UnmanagedType.LPStr)] string label,
-            IntPtr fh, byte fontIndex, byte fontSize,
+            IntPtr windowController, byte maxCount, [MarshalAs(UnmanagedType.LPStr)] string label,
+            byte fontIndex, byte fontSize,
             int x, int y, int w, int h, ColorRGBA color);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_dropdown_menu_populate(
-            IntPtr arena, IntPtr window, IntPtr ddm,
-            [MarshalAs(UnmanagedType.LPStr)] string textString, IntPtr fh, byte fontIndex, byte fontSize, ColorRGBA color);
+            IntPtr windowController, IntPtr ddm,
+            [MarshalAs(UnmanagedType.LPStr)] string textString, byte fontIndex, byte fontSize, ColorRGBA color);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_dropdown_menu_add_listener(
-            IntPtr arena, IntPtr ddm, ButtonClickCallback callback,
+            IntPtr windowController, IntPtr ddm, ButtonClickCallback callback,
             IntPtr userData);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -255,136 +245,63 @@ namespace CimpleUI
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CimpleUI_dropdown_menu_get_state(IntPtr ddm);
 
-        //textfield
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr CimpleUI_CreateTextField(IntPtr arena, IntPtr uiController, IntPtr sm, IntPtr fh,
-                        byte fontIndex, byte fontSize, ColorRGBA color, float x, float y, float width, float height);
 
+        // Popup Notice
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern uint CimpleUI_TextFieldGetTextLength(IntPtr textfield);
+        public static extern void CimpleUI_PopupNoticeInit(
+                IntPtr windowController, [MarshalAs(UnmanagedType.LPStr)] string noticeText,
+                [MarshalAs(UnmanagedType.LPStr)] string buttonText,
+                byte fontIndex, int width, int height, ColorRGBA color);
 
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_TextFieldGetText(IntPtr textfield, byte[] dest);
 
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_TextFieldAppendText(IntPtr arena, IntPtr sm, IntPtr textfield,
-            [MarshalAs(UnmanagedType.LPStr)] string text);
-
-        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CimpleUI_TextField_Clear(IntPtr textfield, IntPtr sm, IntPtr arena);
-
-        /*public static string textbox_gettext(intptr textbox)
-        {
-            int length = (int)cimpleui_textboxgettextlength(textbox);
-            byte[] tmp = new byte[length];
-            cimpleui_textboxgettext(textbox, tmp);
-            return system.text.encoding.utf8.getstring(tmp, 0, length - 1);
-        }*/
     }
-
 
     // ============ High-Level API (Class wrapper) ============
 
-    // IDisposable means, if used with 'using' statement, will auto dispose else need manual dispose
+    // IDisposable means, if use with 'using' statement, will use use dispose when no longer needed
 
-    public class Arena : IDisposable
+    public class CimpleUIController : IDisposable
     {
         private IntPtr _handle;
 
-        public Arena()
+        public CimpleUIController(byte maxWindows = 4, byte maxFonts = 5)
         {
-            _handle = Native.CimpleUI_CreateArena();
+            _handle = Native.CimpleUI_Init(maxWindows, maxFonts);
             if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create arena");
+                throw new Exception("Failed to initialize CimpleUI");
         }
 
         internal IntPtr Handle => _handle;
 
-        public void Dispose()
+        public bool Event()
         {
-            if (_handle != IntPtr.Zero)
+            if (Native.CimpleUI_MultiWindowEventCheck(_handle, out ushort index))
+                return true;
+            else
+                return false;
+        }
+
+        public bool Event(out short WindowIndex)
+        {
+            if (Native.CimpleUI_MultiWindowEventCheck(_handle, out ushort index))
             {
-                Native.CimpleUI_DestroyArena(_handle);
-                _handle = IntPtr.Zero;
+                WindowIndex = (short)index;
+                return true;
             }
-        }
-    }
-
-    public class Window : IDisposable
-    {
-        private IntPtr _handle;
-        private Arena _arena;
-        internal IntPtr Handle => _handle;
-
-        public Window(Arena arena, string title = "Test window", uint width = 800, uint height = 800, bool vsync = true, bool fullscreen = false)
-        {
-            _arena = arena ?? throw new ArgumentNullException(nameof(arena));
-            _handle = Native.CimpleUI_InitWindow(arena.Handle, title, width, height, vsync, fullscreen);
-            if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create window");
-
-        }
-
-        public uint Width => Native.CimpleUI_GetWindowWidth(_handle);
-        public uint Height => Native.CimpleUI_GetWindowHeight(_handle);
-
-        public void Clear(ColorRGBA color) => Native.CimpleUI_ClearScreen(_handle, color);
-        public void Present() => Native.CimpleUI_Present(_handle);
-
-        public void Dispose()
-        {
-            if (_handle != IntPtr.Zero)
+            else
             {
-                Native.CimpleUI_DestroyWindow(_handle);
-                _handle = IntPtr.Zero;
+                WindowIndex = -1;
+                return false;
             }
-        }
-    }
 
-    public class StringMemory : IDisposable
-    {
-        private IntPtr _handle;
-        private Arena _arena;
-
-        public StringMemory(Arena arena, ushort maxStrings = 128)
-        {
-            _arena = arena ?? throw new ArgumentNullException(nameof(arena));
-            _handle = Native.CimpleUI_CreateStringMemory(arena.Handle, maxStrings);
-            if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create string memory");
         }
 
-        internal IntPtr Handle => _handle;
-        internal Arena Arena => _arena;
+        public void Update(float deltaTime) => Native.CimpleUI_MultiWindowUIUpdate(_handle, deltaTime);
 
-        public void Dispose()
+        public void Render(ColorRGBA color) => Native.CimpleUI_MultiWindowRender(_handle, color);
+
+        public void LoadFont(string fileName, byte fontSize = 18)
         {
-            if (_handle != IntPtr.Zero)
-            {
-                Native.CimpleUI_DestroyStringMemory(_handle);
-                _handle = IntPtr.Zero;
-            }
-        }
-    }
-
-    public class FontHolder : IDisposable
-    {
-        private IntPtr _handle;
-
-        public FontHolder(Arena arena, byte maxFonts = 5)
-        {
-            if (arena == null) throw new ArgumentNullException(nameof(arena));
-            _handle = Native.CimpleUI_CreateFontHolder(arena.Handle, maxFonts);
-            if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create font holder");
-        }
-
-        internal IntPtr Handle => _handle;
-
-        public void LoadFont(string fileName, byte fontSize)
-        {
-            if (string.IsNullOrEmpty(fileName))
-                throw new ArgumentException("Font file name cannot be null or empty", nameof(fileName));
             Native.CimpleUI_LoadFont(_handle, fileName, fontSize);
         }
 
@@ -392,88 +309,57 @@ namespace CimpleUI
         {
             if (_handle != IntPtr.Zero)
             {
-                Native.CimpleUI_DestroyFonts(_handle);
+                Native.CimpleUI_QuitSDL(_handle);
                 _handle = IntPtr.Zero;
             }
         }
     }
 
-    public class UIController : IDisposable
+    public class WindowController : IDisposable
     {
         private IntPtr _handle;
-        private Arena _arena;
-        private StringMemory _stringMemory;
-        private Window _window;
-        private FontHolder _fontHolder;
+        private CimpleUIController uiController;
 
-        public UIController(Arena arena, Window window, StringMemory stringMemory, FontHolder fontholder, ushort totalElements = 256)
+        public WindowController(CimpleUIController ui, string title, uint width = 1000, uint height = 800, short uiElem = 64)
         {
-            _stringMemory = stringMemory ?? throw new ArgumentNullException(nameof(stringMemory));
-            _window = window ?? throw new ArgumentNullException(nameof(window));
-            _arena = arena ?? throw new ArgumentNullException(nameof(arena));
-            _fontHolder = fontholder ?? throw new ArgumentNullException(nameof(fontholder));
-            _handle = Native.CimpleUI_CreateUIController(arena.Handle, totalElements);
-            if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create UI controller");
+            if (ui == null) throw new ArgumentNullException(nameof(ui));
+
+            _handle = Native.CimpleUI_CreateWindowController(ui.Handle, title, width, height, uiElem);
+            uiController = ui;
         }
 
         internal IntPtr Handle => _handle;
-        internal Arena Arena => _arena;
-        internal Window Window => _window;
-        internal StringMemory StringMemory => _stringMemory;
-        internal FontHolder FontHolder => _fontHolder;
+        internal CimpleUIController UIController => uiController;
 
-        public void EventCheck()
-        {
-            if (Native.CimpleUI_event_check(_window.Handle, _arena.Handle, _stringMemory.Handle, _handle))
-            {
-                //residing function
-            }
-        }
-        public void Update(float deltaTime) => Native.CimpleUI_UpdateUI(_handle, deltaTime);
-
-        public void Clear(ColorRGBA clearColor) => Native.CimpleUI_ClearScreen(_window.Handle, clearColor);
-        public void Render() => Native.CimpleUI_RenderUI(_window.Handle, _handle);
-        public void Present() => Native.CimpleUI_Present(_window.Handle);
-
-        //all the rendering steps in one function
-        public void EasyRender(ColorRGBA clearColor = default)
-        {
-            if (clearColor.R == 0 && clearColor.G == 0 && clearColor.B == 0 && clearColor.A == 0)
-                clearColor = ColorRGBA.Black;
-            Native.CimpleUI_ClearScreen(_window.Handle, clearColor);
-            Native.CimpleUI_RenderUI(_window.Handle, _handle);
-            Native.CimpleUI_Present(_window.Handle);
-        }
+        public uint Height => Native.CimpleUI_GetWindowHeight(_handle);
+        public uint Width => Native.CimpleUI_GetWindowWidth(_handle);
 
         public void Dispose()
         {
-            if (_handle != IntPtr.Zero)
-            {
-                Native.CimpleUI_DestroyUIController(_handle);
-                _handle = IntPtr.Zero;
-            }
+            Native.CimpleUI_DestroyWindowController(uiController.Handle, _handle);
         }
+
     }
 
     public class Label
     {
         private IntPtr _handle;
 
-        public Label(UIController uiController, int x, int y, int width, int height, string text, TabPannel? tp = null, int? tab = null,
+        public Label(WindowController window, int x, int y, int width, int height, string text, TabPannel? tp = null, int? tab = null,
            byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
         {
-            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
+            if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("text is null or only white space");
+
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.Blue;
 
             _handle = Native.CimpleUI_CreateLabel(
-                uiController.Window.Handle, uiController.Arena.Handle, uiController.Handle,
-                x, y, width, height, text ?? string.Empty,
-                uiController.FontHolder.Handle, fontIndex, fontSize, color);
+                    window.Handle, x, y, width, height, text, fontIndex, fontSize, color);
 
             if (_handle == IntPtr.Zero)
                 throw new Exception("Failed to create label");
+
             if (tp != null && tab != null)
             {
                 TabPannel.add_elem(_handle, tp.Handle, UI_Element.LABEL_ELEM, (int)tab);
@@ -485,22 +371,23 @@ namespace CimpleUI
     public class TextBox
     {
         private IntPtr _handle;
-        private UIController _uiController;
+        private WindowController Window;
 
-        public TextBox(UIController uiController, float x, float y, float width, float height, TabPannel? tp = null, int? tab = null,
+        public TextBox(WindowController window, float x, float y, float width, float height, TabPannel? tp = null, int? tab = null,
             byte fontIndex = 0, byte fontSize = 20, ColorRGBA color = default)
         {
-            _uiController = uiController ?? throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.White;
 
             _handle = Native.CimpleUI_CreateTextBox(
-                uiController.Arena.Handle, uiController.Handle, uiController.StringMemory.Handle, uiController.FontHolder.Handle,
-                fontIndex, fontSize, color, x, y, width, height);
+                    window.Handle, fontIndex, fontSize, color, x, y, width, height);
 
             if (_handle == IntPtr.Zero)
                 throw new Exception("Failed to create textbox");
+
+            Window = window;
 
             if (tp != null && tab != null)
             {
@@ -513,7 +400,7 @@ namespace CimpleUI
         public void AppendText(string text)
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
-            Native.CimpleUI_TextBoxAppendText(_uiController.Arena.Handle, _uiController.StringMemory.Handle, _handle, text);
+            Native.CimpleUI_TextBoxAppendText(Window.Handle, _handle, text);
         }
 
 
@@ -527,7 +414,7 @@ namespace CimpleUI
 
         public void Clear()
         {
-            Native.CimpleUI_TextBox_Clear(_handle, _uiController.StringMemory.Handle, _uiController.StringMemory.Arena.Handle);
+            Native.CimpleUI_TextBox_Clear(_handle, Window.UIController.Handle);
         }
     }
 
@@ -535,22 +422,23 @@ namespace CimpleUI
     public class TextField
     {
         private IntPtr _handle;
-        private UIController _uiController;
+        private WindowController Window;
 
-        public TextField(UIController uiController, float x, float y, float width, float height, TabPannel? tp = null, int? tab = null,
+        public TextField(WindowController window, float x, float y, float width, float height, TabPannel? tp = null, int? tab = null,
             byte fontIndex = 0, byte fontSize = 20, ColorRGBA color = default)
         {
-            _uiController = uiController ?? throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.White;
 
             _handle = Native.CimpleUI_CreateTextField(
-                uiController.Arena.Handle, uiController.Handle, uiController.StringMemory.Handle, uiController.FontHolder.Handle,
-                fontIndex, fontSize, color, x, y, width, height);
+                    window.Handle, fontIndex, fontSize, color, x, y, width, height);
 
             if (_handle == IntPtr.Zero)
-                throw new Exception("Failed to create textbox");
+                throw new Exception("Failed to create textfield");
+
+            Window = window;
 
             if (tp != null && tab != null)
             {
@@ -563,7 +451,7 @@ namespace CimpleUI
         public void AppendText(string text)
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
-            Native.CimpleUI_TextFieldAppendText(_uiController.Arena.Handle, _uiController.StringMemory.Handle, _handle, text);
+            Native.CimpleUI_TextFieldAppendText(Window.Handle, _handle, text);
         }
 
 
@@ -577,7 +465,7 @@ namespace CimpleUI
 
         public void Clear()
         {
-            Native.CimpleUI_TextField_Clear(_handle, _uiController.StringMemory.Handle, _uiController.StringMemory.Arena.Handle);
+            Native.CimpleUI_TextField_Clear(_handle, Window.UIController.Handle);
         }
     }
 
@@ -602,31 +490,29 @@ namespace CimpleUI
             }
         }
 
-        public Button(UIController uiController, int x, int y, int width, int height, string text, TabPannel? tp = null, int? tab = null,
+        public Button(WindowController window, int x, int y, int width, int height, string text, TabPannel? tp = null, int? tab = null,
             byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
         {
-            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.Green;
 
             _handle = Native.CimpleUI_CreateButton(
-                uiController.Arena.Handle, uiController.Handle, uiController.Window.Handle, uiController.FontHolder.Handle,
-                fontIndex, fontSize, x, y, width, height, text ?? string.Empty, color);
+                    window.Handle, fontIndex, fontSize, x, y, width, height, text ?? string.Empty, color);
 
             if (_handle == IntPtr.Zero)
                 throw new Exception("Failed to create button");
 
             // Setup native callback - don't need to worry about Pointers for data and we can capture it from the lambda event declaration
             _nativeCallback = OnNativeClick;
-            Native.CimpleUI_ButtonAddClickListener(uiController.Arena.Handle, _handle, _nativeCallback, IntPtr.Zero);
+            Native.CimpleUI_ButtonAddClickListener(window.Handle, _handle, _nativeCallback, IntPtr.Zero);
 
             if (tp != null && tab != null)
             {
                 TabPannel.add_elem(_handle, tp.Handle, UI_Element.BUTTON_BASIC_ELEM, (int)tab);
             }
         }
-
 
         internal IntPtr Handle => _handle;
 
@@ -645,16 +531,15 @@ namespace CimpleUI
         private IntPtr _handle;
 
         //tabe names like "tab1|tab2|tab3|etc..."
-        public TabPannel(UIController uiController, string tabNames, TabPannelPossition possition = TabPannelPossition.TABPANNEL_TOP,
+        public TabPannel(WindowController window, string tabNames, TabPannelPossition possition = TabPannelPossition.TABPANNEL_TOP,
             int height = 50, byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default, int elemPerTab = 24)
         {
-            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.DarkGray;
 
-            _handle = Native.CimpleUI_CreateTabPannel(uiController.Arena.Handle, uiController.Handle, uiController.Window.Handle,
-                    tabNames, possition, uiController.FontHolder.Handle, fontIndex, fontSize, height, color, elemPerTab);
+            _handle = Native.CimpleUI_CreateTabPannel(window.Handle, tabNames, possition, fontIndex, fontSize, height, color, elemPerTab);
         }
 
         internal IntPtr Handle => _handle;
@@ -669,6 +554,7 @@ namespace CimpleUI
     public class DropdownMenu
     {
         private IntPtr _handle;
+        private WindowController Window;
         private Native.ButtonClickCallback _nativeCallback;
         private List<Action> _eventHandlers = new List<Action>();
 
@@ -687,24 +573,24 @@ namespace CimpleUI
             }
         }
 
-        public DropdownMenu(UIController uiController, string label,
+        public DropdownMenu(WindowController window, string label,
             int x, int y, int width, int height, TabPannel? tp = null, int? tab = null, byte maxCount = 32,
             byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
         {
-            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.Black;
 
             _handle = Native.CimpleUI_dropdown_menu_init(
-                uiController.Arena.Handle, uiController.Handle, uiController.Window.Handle,
-                maxCount, label ?? string.Empty,
-                uiController.FontHolder.Handle, fontIndex, fontSize,
-                x, y, width, height, color);
+                    window.Handle, maxCount, label ?? string.Empty,
+                fontIndex, fontSize, x, y, width, height, color);
+
+            Window = window;
 
             // Setup native callback
             _nativeCallback = OnNativeSelected;
-            Native.CimpleUI_dropdown_menu_add_listener(uiController.Arena.Handle, _handle, _nativeCallback, IntPtr.Zero);
+            Native.CimpleUI_dropdown_menu_add_listener(window.Handle, _handle, _nativeCallback, IntPtr.Zero);
 
             if (tp != null && tab != null)
             {
@@ -723,15 +609,15 @@ namespace CimpleUI
         public void Select(byte index) => Native.CimpleUI_select_dropdown_menu_button(_handle, index);
 
         //Each element is seperated by '\n'
-        public void Populate(UIController uIController, string textString,
+        public void Populate(string textString,
             byte fontIndex = 0, byte fontSize = 0, ColorRGBA color = default)
         {
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.Black;
 
             if (!string.IsNullOrWhiteSpace(textString))
-                Native.CimpleUI_dropdown_menu_populate(uIController.Arena.Handle, uIController.Window.Handle, _handle,
-                    textString, uIController.FontHolder.Handle, fontIndex, fontSize, color);
+                Native.CimpleUI_dropdown_menu_populate(Window.Handle, _handle,
+                    textString, fontIndex, fontSize, color);
         }
 
         private void OnNativeSelected(IntPtr userData)
@@ -745,17 +631,17 @@ namespace CimpleUI
 
     public static class PopupNotice
     {
-        public static void Create(UIController uiController, string notice, string buttonText,
+        public static void Create(WindowController window, string notice, string buttonText,
             byte fontIndex = 0, int width = 300, int height = 150, ColorRGBA color = default)
         {
-            if (uiController == null) throw new ArgumentNullException(nameof(uiController));
+            if (window == null) throw new ArgumentNullException(nameof(window));
 
             if (color.R == 0 && color.G == 0 && color.B == 0 && color.A == 0)
                 color = ColorRGBA.White;
 
             Native.CimpleUI_PopupNoticeInit(
-                uiController.Handle, notice ?? string.Empty, buttonText ?? string.Empty,
-                uiController.FontHolder.Handle, fontIndex, width, height, color);
+                window.Handle, notice ?? string.Empty, buttonText ?? string.Empty,
+                fontIndex, width, height, color);
         }
     }
 }
