@@ -25,6 +25,7 @@ typedef struct BasicButton_Opaque* BasicButton_handle;
 typedef struct Label_Opaque* Label_handle;
 typedef struct TabPannel_Opaque* TabPannel_handle;
 typedef struct DropdownMenu_Opaque* DropdownMenu_handle;
+typedef struct Image_Opaque* Image_handle;
 
 // Color struct
 typedef struct
@@ -63,6 +64,13 @@ EXPORT void CimpleUI_LoadFont(CimpleUI_handle cimpleUI, const char* fileName, ui
 
 // Label_handle
 EXPORT Label_handle CimpleUI_CreateLabel(WindowController_handle windowController, int x, int y, int width, int height, const char* text, uint8_t fontIndex, uint8_t fontSize, ColorRGBA color);
+
+// Image_handle
+EXPORT Image_handle CimpleUI_CreateImage(
+    WindowController_handle windowController,
+    const char* path,
+    int x, int y, int width, int height);
+EXPORT void CimpleUI_SetImageOpacity(Image_handle image, uint8_t opacity);
 
 // TextBox_handle
 EXPORT TextBox_handle CimpleUI_CreateTextBox(

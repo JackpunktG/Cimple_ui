@@ -114,6 +114,23 @@ EXPORT Label_handle CimpleUI_CreateLabel(
     }, w->window->renderer);
 }
 
+/* Image_handle */
+EXPORT Image_handle CimpleUI_CreateImage(
+    WindowController_handle windowController,
+    const char* path,
+    int x, int y, int width, int height)
+{
+    WindowController* w = (WindowController*)windowController;
+    return (Image_handle)image_init(w, path, x, y, width, height);
+}
+
+EXPORT void CimpleUI_SetImageOpacity(Image_handle image, uint8_t opacity)
+{
+    image_opacity_set((Image*)image, opacity);
+}
+
+
+
 /* TextBox */
 EXPORT TextBox_handle CimpleUI_CreateTextBox(
     WindowController_handle windowController,

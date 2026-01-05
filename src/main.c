@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
         //event emmitter
         PopupNoticeData data = {UIController, fh->fonts[0]};
         event_emitter_add_listener(arena, button, BUTTON_BASIC_ELEM, on_button_click, &data);
+        Image* img = image_init(wc, "/home/jack/Documents/Kurse/Csharp/geo_quiz/assets/flags/au.png", 50, 50, 50, 50);
 
 
         DropdownMenu* ddm = dropdown_menu_init(arena, UIController, wc->window->renderer, 16, "Here it comes :)", fh->fonts[0], 0, 500, 500, 200, 50, COLOR[BLACK]);

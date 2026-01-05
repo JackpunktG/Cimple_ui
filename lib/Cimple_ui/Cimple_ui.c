@@ -344,6 +344,32 @@ void free_texture(Texture* texture)
     }
 }
 
+bool load_texture_from_file(Texture* texture, const char* path, SDL_Renderer* renderer)
+{
+    init_texture(texture);
+
+    SDL_Surface* loadedSurface = IMG_Load(path);
+    if (loadedSurface == NULL)
+    {
+        printf("ERROR unable to load image %s! MSG: %s\n", path, IMG_GetError());
+        return false;
+    }
+
+    texture->mTexture = SDL_CreateTextureFromSurface(renderer, loadedSurface);
+    if (texture->mTexture == NULL)
+    {
+        printf("ERROR unable to create texture from %s! MSG: %s\n", path, SDL_GetError());
+        SDL_FreeSurface(loadedSurface);
+        return false;
+    }
+
+    texture->width = loadedSurface->w;
+    texture->height = loadedSurface->h;
+
+    SDL_FreeSurface(loadedSurface);
+    return true;
+}
+
 bool load_texture_from_rendered_text(Texture* texture, uint32_t wraplength, const char* text, TTF_Font* font, SDL_Color textColor, SDL_Renderer* renderer)
 {
     init_texture(texture);
@@ -694,6 +720,7 @@ void ui_update(UIController* uiC, float deltaTime)
 
 void render_tab_pannel_buttons(TabPannel* tp, SDL_Renderer* renderer);
 void dropdown_menu_render(DropdownMenu* ddm, SDL_Renderer* renderer);
+void image_render(Image* img, SDL_Renderer* renderer);
 void ui_render(SDL_Renderer* renderer, UIController* uiC)
 {
     for(int i = 0; i < uiC->count; ++i)
@@ -743,6 +770,12 @@ void ui_render(SDL_Renderer* renderer, UIController* uiC)
         {
             TextField* tf = (TextField*)uiC->element[i];
             textfield_render(renderer, tf);
+            break;
+        }
+        case IMAGE_ELEM:
+        {
+            Image* img = (Image*)uiC->element[i];
+            image_render(img, renderer);
             break;
         }
         case NULL_ELEM:
@@ -799,6 +832,12 @@ void ui_controller_destroy(UIController* uiC)
         {
             PopUpNotice* pn = (PopUpNotice*)uiC->element[i];
             popup_notice_destroy(pn);
+            break;
+        }
+        case IMAGE_ELEM:
+        {
+            Image* img = (Image*)uiC->element[i];
+            free_texture(img->texture);
             break;
         }
         case NULL_ELEM:
@@ -2154,3 +2193,46 @@ void destroy_window_controller(WindowHolder* wh, WindowController* wc)
     }
     assert(false && "Window to destory not found");
 }
+
+Image* image_init(WindowController* windowController, const char* path, int x, int y, int w, int h)
+{
+    Image* img = arena_alloc(windowController->arena, sizeof(Image), NULL);
+    img->texture = arena_alloc(windowController->arena, sizeof(Texture), NULL);
+    if (load_texture_from_file(img->texture, path, windowController->window->renderer))
+    {
+        img->rect.x = x;
+        img->rect.y = y;
+        if (w == 0 || h == 0)
+        {
+            img->rect.h = img->texture->height;
+            img->rect.w = img->texture->width;
+        }
+        else
+        {
+            img->rect.h = h;
+            img->rect.w = w;
+        }
+        SDL_SetTextureBlendMode(img->texture->mTexture, SDL_BLENDMODE_BLEND);
+    }
+    img->hidden = false;
+
+    ui_elem_add(windowController->uiController, img, IMAGE_ELEM);
+    return img;
+}
+
+void image_render(Image* img, SDL_Renderer* renderer)
+{
+    if (img->hidden) return;
+
+    if (img->texture->mTexture != NULL)
+        SDL_RenderCopyF(renderer, img->texture->mTexture, NULL, &img->rect);
+}
+
+void image_opacity_set(Image* img, uint8_t opacity)
+{
+    if (img->texture->mTexture != NULL)
+        SDL_SetTextureAlphaMod(img->texture->mTexture, opacity);
+    else
+        printf("WARNING: texture is NULL\n");
+}
+

@@ -26,6 +26,7 @@ Make sure to link against the SDL2 library when compiling your project.
 Cimple_ui currently supports the following UI elements:
 - Button
 - Label
+- Image
 - Text Field
 - Text box
 - Tabs  

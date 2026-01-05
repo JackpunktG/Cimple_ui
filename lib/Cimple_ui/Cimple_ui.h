@@ -99,7 +99,8 @@ typedef enum
     POPUP_NOTICE_ELEM,
     LABEL_ELEM,
     TABPANNEL_ELEM,
-    DROPDOWN_MENU_ELEM
+    DROPDOWN_MENU_ELEM,
+    IMAGE_ELEM
 } UI_Element;
 
 typedef struct
@@ -136,6 +137,7 @@ typedef struct
 Label* label_basic_init(Arena* arena, UIController* uiController, int x, int y, int width, int hight, const char* text, TTF_Font* font, uint8_t fontSize, SDL_Color color, SDL_Renderer* renderer);
 void label_basic_render(SDL_Renderer* renderer, Label* label);
 //destroy of texture handled in ui_controller_destroy
+
 
 
 /* Event Emitter */
@@ -385,5 +387,20 @@ void multi_window_ui_update(WindowHolder* wh, float deltaTime);
 void multi_window_render(WindowHolder* wh, SDL_Color color);
 //destory window and then replaces that slot with the last on created!
 void destroy_window_controller(WindowHolder* wh, WindowController* wc);
+
+
+/* IMG Element */
+typedef struct
+{
+    SDL_FRect rect;
+    Texture* texture;
+    bool hidden;
+} Image;
+// w & h can be null and then it takes the w & h from texture
+Image* image_init(WindowController* windowController, const char* path, int x, int y, int w, int h);
+// opacity 0-255
+void image_opacity_set(Image* img, uint8_t opacity);
+//Rendering and destroying handled with windowController
+
 
 #endif
