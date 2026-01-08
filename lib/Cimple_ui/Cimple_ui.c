@@ -2256,3 +2256,29 @@ void image_opacity_set(Image* img, uint8_t opacity)
         printf("WARNING: texture is NULL\n");
 }
 
+void image_renew(WindowController* windowController, Image* img, const char* path, int x, int y, int w, int h)
+{
+    if(img->texture != NULL)
+        free_texture(img->texture);
+
+    if (load_texture_from_file(img->texture, path, windowController->window->renderer))
+    {
+        if (x != IMAGE_SAME_POSITION && y != IMAGE_SAME_POSITION)
+        {
+            img->rect.x = x;
+            img->rect.y = y;
+        }
+        if (w == 0 || h == 0)
+        {
+            img->rect.h = img->texture->height;
+            img->rect.w = img->texture->width;
+        }
+        else
+        {
+            img->rect.h = h;
+            img->rect.w = w;
+        }
+        SDL_SetTextureBlendMode(img->texture->mTexture, SDL_BLENDMODE_BLEND);
+    }
+
+}

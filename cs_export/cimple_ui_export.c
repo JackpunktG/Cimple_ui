@@ -128,6 +128,19 @@ EXPORT void CimpleUI_SetImageOpacity(Image_handle image, uint8_t opacity)
 {
     image_opacity_set((Image*)image, opacity);
 }
+EXPORT void CimpleUI_ImageMove(Image_handle image, int x, int y)
+{
+    Image* img = (Image*) image;
+    if (x > -5000)
+        img->rect.x = x;
+    if (y > -5000)
+        img->rect.y = y;
+}
+EXPORT void CimpleUI_ImageRenew(WindowController_handle windowController, Image_handle image, const char* path, int x, int y, int w, int h)
+{
+    image_renew((WindowController*)windowController, (Image*)image, path, x, y, w, h);
+}
+
 
 
 

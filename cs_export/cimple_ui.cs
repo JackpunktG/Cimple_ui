@@ -88,10 +88,12 @@ namespace CimpleUI
 
     }
 
+
     /* ==== Native Imports - P/Invoke internal layer ==== */
     internal static class Native
     {
         const string DLL = "cimple_ui";
+        public const int IMAGE_NO_VALUE_CHANGE = -9999;
 
         // Initialization
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -143,8 +145,15 @@ namespace CimpleUI
         public static extern IntPtr CimpleUI_CreateImage(IntPtr windowController,
             [MarshalAs(UnmanagedType.LPStr)] string imagePath,
             int x, int y, int width, int height);
+
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CimpleUI_SetImageOpacity(IntPtr image, byte opacity);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_ImageMove(IntPtr image, int x, int y);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_ImageRenew(IntPtr windowController, IntPtr image, [MarshalAs(UnmanagedType.LPStr)] string imagePath, int x, int y, int w, int h);
 
         // Callback delegate 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -388,6 +397,7 @@ namespace CimpleUI
     public class Image
     {
         private IntPtr _handle;
+        private WindowController Window;
 
         public Image(WindowController window, string imagePath, int x, int y, int width = 0, int height = 0, TabPannel? tp = null, int? tab = null)
         {
@@ -404,6 +414,7 @@ namespace CimpleUI
             {
                 TabPannel.add_elem(_handle, tp.Handle, UI_Element.LABEL_ELEM, (int)tab);
             }
+            Window = window;
         }
 
         internal IntPtr Handle => _handle;
@@ -411,6 +422,16 @@ namespace CimpleUI
         public void SetAlpha(byte opacity)
         {
             Native.CimpleUI_SetImageOpacity(_handle, opacity);
+        }
+
+        public void Move(int x = Native.IMAGE_NO_VALUE_CHANGE, int y = Native.IMAGE_NO_VALUE_CHANGE)
+        {
+            Native.CimpleUI_ImageMove(_handle, x, y);
+        }
+
+        public void Renew(string path, int x = Native.IMAGE_NO_VALUE_CHANGE, int y = Native.IMAGE_NO_VALUE_CHANGE, int w = 0, int h = 0)
+        {
+            Native.CimpleUI_ImageRenew(Window.Handle, _handle, path, x, y, w, h);
         }
     }
 

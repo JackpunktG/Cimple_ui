@@ -72,8 +72,9 @@ EXPORT Image_handle CimpleUI_CreateImage(
     const char* path,
     int x, int y, int width, int height);
 EXPORT void CimpleUI_SetImageOpacity(Image_handle image, uint8_t opacity);
-EXPORT void CimpleUI_Image_Move(Image_handle image, int x, int y);
-
+// to keep x or y the same send through value -5000 or more
+EXPORT void CimpleUI_ImageMove(Image_handle image, int x, int y);
+EXPORT void CimpleUI_ImageRenew(WindowController_handle windowController, Image_handle image, const char* path, int x, int y, int w, int h);
 
 // TextBox_handle
 EXPORT TextBox_handle CimpleUI_CreateTextBox(

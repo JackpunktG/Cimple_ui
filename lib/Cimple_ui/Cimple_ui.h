@@ -400,11 +400,15 @@ typedef struct
     Texture* texture;
     bool hidden;
 } Image;
-// w & h can be null and then it takes the w & h from texture
+// w & h can be 0 and then it takes the w & h from texture
 Image* image_init(WindowController* windowController, const char* path, int x, int y, int w, int h);
 // opacity 0-255
 void image_opacity_set(Image* img, uint8_t opacity);
 //Rendering and destroying handled with windowController
+#define IMAGE_SAME_POSITION -9999
+// allowing a new image to take the place of the current one
+// send through same position on x and y to keep it at current position. w & h work the same like in init
+void image_renew(WindowController* windowController, Image* image, const char* path, int x, int y, int w, int h);
 
 
 #endif
