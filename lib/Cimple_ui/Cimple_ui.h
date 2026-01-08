@@ -50,8 +50,12 @@ typedef struct
     bool minimized;
 } WindowUI;
 
+#define CIMPLE_WINDOW_VSYNC (1 << 1)
+#define CIMPLE_WINDOW_FULLSCREEN (1 << 2)
+#define CIMPLE_WINDOW_RESIZABLE (1 << 3)
+
 // Windows Initialization Function. Also automatically initializes SDL2, SDL2_image, and SDL2_ttf
-bool init_SDL2_ui(WindowUI* window, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen);
+bool init_SDL2_ui(WindowUI* window, const char* title, uint32_t width, uint32_t height, uint32_t FLAGS);
 // quits SDL2 subsystems
 void quit_SDL2_ui();
 void destroy_window_ui(WindowUI* window);
@@ -64,7 +68,7 @@ bool windowUI_has_focus(WindowUI* windowUI);
 // Clears the screen with the given colour
 void clear_screen_with_color(SDL_Renderer* renderer, SDL_Color colour);
 /* Area memory window returns for pop-ups etc */
-WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, bool vsync, bool fullscreen);
+WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, uint32_t FLAGS);
 
 
 
@@ -379,7 +383,7 @@ typedef struct
 
 //destruction is with mainArena
 WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount);
-WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax);
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax, uint32_t FLAGS);
 // check events for all windows - returns true if any window changed size - windowID is set to changed window index
 //windowID can be NULL if not needed
 bool multi_window_event_check(WindowHolder* wh, SDL_Event* e, uint16_t* windowID);

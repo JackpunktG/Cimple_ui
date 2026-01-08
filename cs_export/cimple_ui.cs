@@ -68,7 +68,8 @@ namespace CimpleUI
         POPUP_NOTICE_ELEM,
         LABEL_ELEM,
         TABPANNEL_ELEM,
-        DROPDOWN_MENU_ELEM
+        DROPDOWN_MENU_ELEM,
+        IMAGE_ELEM
     }
 
     public enum DropdownMenu_State
@@ -76,6 +77,15 @@ namespace CimpleUI
         DROPDOWN_NORMAL,
         DROPDOWN_EXPANDED,
         DROPDOWN_SELECTED
+    }
+
+    [Flags]
+    public enum WindowFlags : uint
+    {
+        WINDOW_VSYNC = 1 << 1,
+        WINDOW_FULLSCREEN = 1 << 2,
+        WINDOW_RESIZABLE = 1 << 3
+
     }
 
     /* ==== Native Imports - P/Invoke internal layer ==== */
@@ -106,7 +116,7 @@ namespace CimpleUI
         // Window creating 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CimpleUI_CreateWindowController(IntPtr cimpleUI,
-        [MarshalAs(UnmanagedType.LPStr)] string title, uint width, uint height, short uiElemMax);
+        [MarshalAs(UnmanagedType.LPStr)] string title, uint width, uint height, short uiElemMax, uint FLAGS);
 
         // Destroy WindowController
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -128,6 +138,13 @@ namespace CimpleUI
         public static extern IntPtr CimpleUI_CreateLabel(IntPtr windowController, int x, int y, int width, int height,
                 [MarshalAs(UnmanagedType.LPStr)] string text, byte fontIndex, byte fontSize, ColorRGBA color);
 
+        // Image Fuctions
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CimpleUI_CreateImage(IntPtr windowController,
+            [MarshalAs(UnmanagedType.LPStr)] string imagePath,
+            int x, int y, int width, int height);
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CimpleUI_SetImageOpacity(IntPtr image, byte opacity);
 
         // Callback delegate 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -320,11 +337,11 @@ namespace CimpleUI
         private IntPtr _handle;
         private CimpleUIController uiController;
 
-        public WindowController(CimpleUIController ui, string title, uint width = 1000, uint height = 800, short uiElem = 64)
+        public WindowController(CimpleUIController ui, string title, uint width = 1000, uint height = 800, short uiElem = 64, WindowFlags FLAGS = WindowFlags.WINDOW_VSYNC)
         {
             if (ui == null) throw new ArgumentNullException(nameof(ui));
 
-            _handle = Native.CimpleUI_CreateWindowController(ui.Handle, title, width, height, uiElem);
+            _handle = Native.CimpleUI_CreateWindowController(ui.Handle, title, width, height, uiElem, (uint)FLAGS);
             uiController = ui;
         }
 
@@ -366,6 +383,35 @@ namespace CimpleUI
             }
         }
         internal IntPtr Handle => _handle;
+    }
+
+    public class Image
+    {
+        private IntPtr _handle;
+
+        public Image(WindowController window, string imagePath, int x, int y, int width = 0, int height = 0, TabPannel? tp = null, int? tab = null)
+        {
+            if (window == null) throw new ArgumentNullException(nameof(window));
+            if (string.IsNullOrWhiteSpace(imagePath)) throw new ArgumentException("imagePath is null or only white space");
+
+            _handle = Native.CimpleUI_CreateImage(
+                    window.Handle, imagePath, x, y, width, height);
+
+            if (_handle == IntPtr.Zero)
+                throw new Exception("Failed to create image");
+
+            if (tp != null && tab != null)
+            {
+                TabPannel.add_elem(_handle, tp.Handle, UI_Element.LABEL_ELEM, (int)tab);
+            }
+        }
+
+        internal IntPtr Handle => _handle;
+
+        public void SetAlpha(byte opacity)
+        {
+            Native.CimpleUI_SetImageOpacity(_handle, opacity);
+        }
     }
 
     public class TextBox

@@ -57,6 +57,17 @@ bool init_resizable_window(SDL_Window** windowUI, const char* title, uint32_t wi
     return true;
 }
 
+bool init_window(SDL_Window** windowUI, const char* title, uint32_t width, uint32_t height)
+{
+    *windowUI = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
+    if (*windowUI == NULL)
+    {
+        printf("ERROR init windowUI! MSG: %s\n", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
 bool init_popup_window(SDL_Window** windowUI, const char* title, uint32_t width, uint32_t height)
 {
     int x, y;
@@ -125,14 +136,22 @@ bool init_TTF()
     return true;
 }
 
-bool init_SDL2_ui(WindowUI* windowUI, const char* title, uint32_t width, uint32_t height, bool vsync, bool fullscreen)
+bool init_SDL2_ui(WindowUI* windowUI, const char* title, uint32_t width, uint32_t height, uint32_t FLAGS)
 {
     if (!init_SDL()) return false;
 
-    if (!init_resizable_window(&windowUI->window, title, width, height))
-        return false;
+    if (FLAGS & CIMPLE_WINDOW_RESIZABLE)
+    {
+        if (!init_resizable_window(&windowUI->window, title, width, height))
+            return false;
+    }
+    else
+    {
+        if (!init_window(&windowUI->window, title, width, height))
+            return false;
+    }
 
-    if (vsync)
+    if (FLAGS & CIMPLE_WINDOW_VSYNC)
     {
         if (!init_renderer_vsync(windowUI->window, &windowUI->renderer))
             return false;
@@ -143,15 +162,16 @@ bool init_SDL2_ui(WindowUI* windowUI, const char* title, uint32_t width, uint32_
             return false;
     }
 
-    windowUI->fullscreen = fullscreen;
 
-    if (fullscreen)
+    if (FLAGS & CIMPLE_WINDOW_FULLSCREEN)
     {
+        windowUI->fullscreen = true;
         SDL_SetWindowFullscreen(windowUI->window, SDL_WINDOW_FULLSCREEN_DESKTOP);
         SDL_GetWindowSize(windowUI->window, &windowUI->width, &windowUI->height);
     }
     else
     {
+        windowUI->fullscreen = false;
         windowUI->width = width;
         windowUI->height = height;
     }
@@ -174,10 +194,10 @@ WindowUI* create_arena_window_popup(const char* title, uint32_t width, uint32_t 
     return windowUI;
 }
 
-WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, bool vsync, bool fullscreen)
+WindowUI* create_arena_window_ui(const char* title, uint32_t width, uint32_t height, Arena* arena, uint32_t FLAGS)
 {
     WindowUI* windowUI = arena_alloc(arena, sizeof(WindowUI), NULL);
-    if (!init_SDL2_ui(windowUI, title, width, height, vsync, fullscreen))
+    if (!init_SDL2_ui(windowUI, title, width, height, FLAGS))
     {
         return NULL;
     }
@@ -2127,12 +2147,12 @@ WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount)
     return wh;
 };
 
-WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax)
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax, uint32_t FLAGS)
 {
     Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
     WindowController* wc = arena_alloc(arena, sizeof(WindowController), false);
     memset(wc, 0, sizeof(WindowController));
-    wc->window = create_arena_window_ui(title, width, height, arena, true, false);
+    wc->window = create_arena_window_ui(title, width, height, arena, FLAGS);
     wc->uiController = ui_controller_init(arena, uiElemMax);
     wc->fh = fh;
     wc->sm = sm;

@@ -35,13 +35,13 @@ EXPORT WindowController_handle CimpleUI_CreateWindowController(
     CimpleUI_handle cimpleUI,
     const char* title,
     uint32_t width,
-    uint32_t height, uint16_t uiElemMax)
+    uint32_t height, uint16_t uiElemMax, uint32_t FLAGS)
 {
     CimpleUI* ui = (CimpleUI*)cimpleUI;
     WindowHolder* windowController = ui->windowController;
     StringMemory* sm = ui->sm;
     FontHolder* fh = ui->fh;
-    return (WindowController_handle)window_controller_init(windowController, sm, fh, title, width, height, uiElemMax);
+    return (WindowController_handle)window_controller_init(windowController, sm, fh, title, width, height, uiElemMax, FLAGS);
 }
 
 EXPORT bool CimpleUI_MultiWindowEventCheck(CimpleUI_handle cimpleUI, uint16_t* windowID)

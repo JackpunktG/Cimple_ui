@@ -51,7 +51,8 @@ EXPORT WindowController_handle CimpleUI_CreateWindowController(
     const char* title,
     uint32_t width,
     uint32_t height,
-    uint16_t uiElemMax);
+    uint16_t uiElemMax,
+    uint32_t FLAGS);
 EXPORT bool CimpleUI_MultiWindowEventCheck(CimpleUI_handle cimpleUI, uint16_t* windowID);
 EXPORT void CimpleUI_MultiWindowUIUpdate(CimpleUI_handle cimpleUI, float deltaTime);
 EXPORT void CimpleUI_MultiWindowRender(CimpleUI_handle cimpleUI, ColorRGBA color);
@@ -71,6 +72,8 @@ EXPORT Image_handle CimpleUI_CreateImage(
     const char* path,
     int x, int y, int width, int height);
 EXPORT void CimpleUI_SetImageOpacity(Image_handle image, uint8_t opacity);
+EXPORT void CimpleUI_Image_Move(Image_handle image, int x, int y);
+
 
 // TextBox_handle
 EXPORT TextBox_handle CimpleUI_CreateTextBox(

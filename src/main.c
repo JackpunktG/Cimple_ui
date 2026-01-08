@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     load_fonts(fh, text, DEFAULT_FONT_SIZE);
     WindowHolder* wh = window_holder_init(mainArena, 32);
 
-    WindowController* wc = window_controller_init(wh, string_memory, fh, "one", 800, 600, 16);
+    WindowController* wc = window_controller_init(wh, string_memory, fh, "one", 800, 600, 16, CIMPLE_WINDOW_RESIZABLE | CIMPLE_WINDOW_VSYNC);
 
     {
         Arena* arena = wc->arena;
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         add_elem_to_pannel(textfield, TEXTFIELD_ELEM, tp, 1);
     }
 
-    WindowController* wc1 = window_controller_init(wh, string_memory, fh, "two", 640, 480, 16);
+    WindowController* wc1 = window_controller_init(wh, string_memory, fh, "two", 640, 480, 16, CIMPLE_WINDOW_VSYNC);
     {
         Arena* arena = wc1->arena;
         UIController* UIController = wc1->uiController;
