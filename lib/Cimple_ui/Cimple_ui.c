@@ -2147,7 +2147,7 @@ WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount)
     return wh;
 };
 
-WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax, uint32_t FLAGS)
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint16_t uiElemMax, uint32_t FLAGS)
 {
     Arena* arena = arena_init(ARENA_BLOCK_SIZE, 8, false);
     WindowController* wc = arena_alloc(arena, sizeof(WindowController), false);

@@ -383,7 +383,7 @@ typedef struct
 
 //destruction is with mainArena
 WindowHolder* window_holder_init(Arena* mainArena, uint16_t maxCount);
-WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint8_t uiElemMax, uint32_t FLAGS);
+WindowController* window_controller_init(WindowHolder* wh, StringMemory* sm, FontHolder* fh, const char* title, uint16_t width, uint16_t height, uint16_t uiElemMax, uint32_t FLAGS);
 // check events for all windows - returns true if any window changed size - windowID is set to changed window index
 //windowID can be NULL if not needed
 bool multi_window_event_check(WindowHolder* wh, SDL_Event* e, uint16_t* windowID);
